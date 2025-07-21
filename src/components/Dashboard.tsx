@@ -554,26 +554,55 @@ const DashboardAdmin: React.FC<DashboardProps> = ({ clientes, movimientos, curre
     };
   }, [movimientos]);
 
-  // Control de cheques
-  const controlCheques = useMemo(() => {
+  // Control avanzado de cheques (solo admins)
+  const resumenCheques = useMemo(() => {
+    const baseResumen = {
+      total: 0,
+      enFecha: 0,
+      pasadosFecha: 0,
+      vencidos: 0,
+      vencenHoy: 0,
+      paraDepositoHoy: 0
+    };
+
     if (!cheques || cheques.length === 0) {
-      return {
-        total: 0,
-        pendientes: 0,
-        importeTotal: 0,
-        mensaje: 'Sin cheques en el sistema'
-      };
+      return baseResumen;
     }
 
-    const chequesPendientes = cheques.filter(c => c.estado === 'Pendiente');
-    const importeTotal = chequesPendientes.reduce((sum, c) => sum + (c.importe || 0), 0);
+    const DIAS_GRACIA = 3;
+    const DIAS_PLAZO = 30;
+    const hoy = new Date();
 
-    return {
-      total: cheques.length,
-      pendientes: chequesPendientes.length,
-      importeTotal,
-      mensaje: chequesPendientes.length > 0 ? `${chequesPendientes.length} pendientes` : 'Todos al día'
-    };
+    cheques
+      .filter(c => c.estado === 'Pendiente')
+      .forEach(c => {
+        const importe = c.importe || 0;
+        const venc = new Date(c.fecha_vencimiento + 'T00:00:00');
+        const diffDias = Math.floor((venc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+
+        baseResumen.total += 1;
+
+        if (diffDias === 0) {
+          baseResumen.vencenHoy += 1;
+        }
+
+        if (diffDias >= 0 || diffDias >= -DIAS_GRACIA) {
+          // En fecha o dentro de los días de gracia
+          baseResumen.enFecha += 1;
+        } else if (diffDias >= -DIAS_PLAZO) {
+          // Pasados de fecha pero aún depositables
+          baseResumen.pasadosFecha += 1;
+        } else {
+          // Fuera de plazo
+          baseResumen.vencidos += 1;
+        }
+
+        if (diffDias <= 0 && diffDias >= -DIAS_PLAZO) {
+          baseResumen.paraDepositoHoy += 1;
+        }
+      });
+
+    return baseResumen;
   }, [cheques]);
 
   // Calcular número total de vendedores únicos
@@ -615,11 +644,11 @@ const DashboardAdmin: React.FC<DashboardProps> = ({ clientes, movimientos, curre
           icono={<UserCheck />} 
           color="purple" 
         />
-        <MiniMetrica 
-          valor={controlCheques.total} 
-          label="Cheques en Sistema" 
-          icono={<CreditCard />} 
-          color="blue" 
+        <MiniMetrica
+          valor={resumenCheques.total}
+          label="Cheques en Sistema"
+          icono={<CreditCard />}
+          color="blue"
         />
       </div>
 
@@ -690,30 +719,34 @@ const DashboardAdmin: React.FC<DashboardProps> = ({ clientes, movimientos, curre
             <CreditCard className="mr-2 text-orange-500" size={20} />
             Control de Cheques
           </h3>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="text-sm font-medium text-green-800">En fecha / en gracia</div>
+              <div className="text-xl font-bold text-green-600">{resumenCheques.enFecha}</div>
+            </div>
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="text-sm font-medium text-yellow-800">Pasados de fecha</div>
+              <div className="text-xl font-bold text-yellow-600">{resumenCheques.pasadosFecha}</div>
+            </div>
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="text-sm font-medium text-red-800">Vencidos</div>
+              <div className="text-xl font-bold text-red-600">{resumenCheques.vencidos}</div>
+            </div>
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="text-sm font-medium text-blue-800">Vencen hoy</div>
+              <div className="text-xl font-bold text-blue-600">{resumenCheques.vencenHoy}</div>
+            </div>
             <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium text-orange-800">Total Sistema</div>
-                  <div className="text-2xl font-bold text-orange-600">{controlCheques.total}</div>
-                </div>
-                <CreditCard className="text-orange-500" size={32} />
-              </div>
+              <div className="text-sm font-medium text-orange-800">Total sistema</div>
+              <div className="text-xl font-bold text-orange-600">{cheques.length}</div>
             </div>
-            
-            {controlCheques.pendientes > 0 && (
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="text-sm font-medium text-yellow-800 mb-1">Pendientes de Cobro</div>
-                <div className="text-xl font-bold text-yellow-600">{controlCheques.pendientes}</div>
-                <div className="text-sm text-yellow-700 mt-1">
-                  Valor: {formatearMoneda(controlCheques.importeTotal)}
-                </div>
-              </div>
-            )}
-            
-            <div className="text-center text-sm text-gray-500">
-              {controlCheques.mensaje}
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="text-sm font-medium text-purple-800">Para depósito hoy</div>
+              <div className="text-xl font-bold text-purple-600">{resumenCheques.paraDepositoHoy}</div>
             </div>
+          </div>
+          <div className="mt-4 text-center">
+            <a href="/cheques" className="text-sm text-primary hover:underline">Ver todos los cheques</a>
           </div>
         </div>
 

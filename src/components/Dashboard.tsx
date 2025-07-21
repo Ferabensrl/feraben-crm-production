@@ -562,7 +562,8 @@ const DashboardAdmin: React.FC<DashboardProps> = ({ clientes, movimientos, curre
       pasadosFecha: 0,
       vencidos: 0,
       vencenHoy: 0,
-      paraDepositoHoy: 0
+      paraDepositoHoy: 0,
+      importeDepositoHoy: 0
     };
 
     if (!cheques || cheques.length === 0) {
@@ -572,6 +573,7 @@ const DashboardAdmin: React.FC<DashboardProps> = ({ clientes, movimientos, curre
     const DIAS_GRACIA = 3;
     const DIAS_PLAZO = 30;
     const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
 
     cheques
       .filter(c => c.estado === 'Pendiente')
@@ -599,6 +601,7 @@ const DashboardAdmin: React.FC<DashboardProps> = ({ clientes, movimientos, curre
 
         if (diffDias <= 0 && diffDias >= -DIAS_PLAZO) {
           baseResumen.paraDepositoHoy += 1;
+          baseResumen.importeDepositoHoy += importe;
         }
       });
 
@@ -736,13 +739,12 @@ const DashboardAdmin: React.FC<DashboardProps> = ({ clientes, movimientos, curre
               <div className="text-sm font-medium text-blue-800">Vencen hoy</div>
               <div className="text-xl font-bold text-blue-600">{resumenCheques.vencenHoy}</div>
             </div>
-            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-              <div className="text-sm font-medium text-orange-800">Total sistema</div>
-              <div className="text-xl font-bold text-orange-600">{cheques.length}</div>
-            </div>
             <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="text-sm font-medium text-purple-800">Para depósito hoy</div>
               <div className="text-xl font-bold text-purple-600">{resumenCheques.paraDepositoHoy}</div>
+              <div className="mt-1 text-sm text-purple-700">
+                {formatearMoneda(resumenCheques.importeDepositoHoy)}
+              </div>
             </div>
           </div>
           <div className="mt-4 text-center">

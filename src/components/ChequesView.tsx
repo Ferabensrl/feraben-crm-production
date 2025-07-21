@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2, Calendar, DollarSign, User, FileText, Download } from 'lucide-react'
 import { supabase, formatearMoneda, formatearFecha } from '../lib/supabase'
+import { CurrentUser } from '../store/session'
 
 interface Cheque {
   id: number
@@ -30,7 +31,7 @@ interface FormularioCheque {
 }
 
 interface ChequesViewProps {
-  currentUser: { id: number; nombre: string; rol: string }
+  currentUser: CurrentUser
 }
 
 export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {

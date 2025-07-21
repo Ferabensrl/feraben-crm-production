@@ -65,7 +65,7 @@ const VendedoresView: React.FC<VendedoresViewProps> = ({ currentUser }) => {
       alert(`❌ No se puede eliminar. Reasigna sus ${vendedor.clientes_asignados} clientes.`)
       return
     }
-    if (!confirm(`🗑️ ¿ELIMINAR VENDEDOR ${vendedor.nombre}? Esta acción no se puede deshacer.`)) {
+    if (!window.confirm(`🗑️ ¿ELIMINAR VENDEDOR ${vendedor.nombre}? Esta acción no se puede deshacer.`)) {
       return
     }
 

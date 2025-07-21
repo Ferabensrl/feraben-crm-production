@@ -165,36 +165,6 @@ export const useBuscadorCheques = (cheques: any[]) => {
   });
 };
 
-// 🔮 HOOKS FUTUROS PREPARADOS
-
-// 📦 HOOK PARA PRODUCTOS (FUTURO)
-export const useBuscadorProductos = (productos: any[]) => {
-  return useBuscador(productos, {
-    campos: [
-      'nombre',
-      'codigo',
-      'codigo_barras', // 🎯 ¡Preparado para códigos de barras!
-      'categoria',
-      'proveedor.nombre'
-    ],
-    debounceMs: 200 // Más rápido para productos
-  });
-};
-
-// 🏷️ HOOK PARA FACTURAS (FUTURO)
-export const useBuscadorFacturas = (facturas: any[]) => {
-  return useBuscador(facturas, {
-    campos: [
-      'numero_factura',
-      'serie',
-      'cliente.razon_social',
-      'estado',
-      'vendedor.nombre'
-    ],
-    debounceMs: 300
-  });
-};
-
 // 📊 FUNCIONES DE UTILIDAD ADICIONALES
 
 // 🎯 BÚSQUEDA POR RANGO DE FECHAS
@@ -230,14 +200,6 @@ export const filtrarPorRangoMontos = <T extends { importe: number }>(
     if (montoDesde !== undefined && monto < montoDesde) return false;
     if (montoHasta !== undefined && monto > montoHasta) return false;
     return true;
-  });
-};
-
-// 🔍 BÚSQUEDA POR CÓDIGO DE BARRAS (FUTURO)
-export const buscarPorCodigoBarras = (codigo: string, productos: any[]) => {
-  return useBuscador(productos, {
-    campos: ['codigo_barras'],
-    busquedaExacta: true // Códigos de barras deben ser exactos
   });
 };
 

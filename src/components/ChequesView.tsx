@@ -212,7 +212,7 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
       return
     }
 
-    if (!confirm(`¿Eliminar cheque ${cheque.numero_cheque} por ${formatearMoneda(cheque.importe)}?`)) return
+    if (!window.confirm(`¿Eliminar cheque ${cheque.numero_cheque} por ${formatearMoneda(cheque.importe)}?`)) return
 
     try {
       setEliminando(cheque.id)

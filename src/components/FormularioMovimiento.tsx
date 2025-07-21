@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
-import { supabase, formatearMoneda } from '../lib/supabase'
+import { supabase, formatearMoneda, ajustarInventario } from '../lib/supabase'
 
 interface Cliente {
   id: number
@@ -176,7 +176,12 @@ export const FormularioMovimiento: React.FC<FormularioMovimientoProps> = ({
 
       console.log('✅ Movimiento guardado:', data)
       alert(`✅ Movimiento ${movimientoEditar ? 'actualizado' : 'creado'} correctamente`)
-      
+
+      if (!movimientoEditar && formData.tipo_movimiento === 'Venta') {
+        // Ajustar inventario restando 1 unidad al SKU indicado en el documento
+        await ajustarInventario(formData.documento, -1)
+      }
+
       onSuccess()
       onClose()
       

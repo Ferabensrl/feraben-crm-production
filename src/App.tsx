@@ -12,7 +12,8 @@ import LiquidacionesView from './components/comisiones/LiquidacionesView';
 import { ChequesView } from './components/ChequesView';
 import { LoginScreen } from './components/LoginScreen';
 import { useSessionStore } from './store/session';
-import { useDataStore } from './store/data';
+import { useQueryClient } from '@tanstack/react-query'
+import { useClientesQuery, useMovimientosQuery, useChequesQuery } from './hooks/useQueries'
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 
 const NavItem: React.FC<{ icon: React.ReactNode; label: string; to: string; active: boolean; onClick?: () => void }> = ({ icon, label, to, active, onClick }) => (
@@ -30,7 +31,14 @@ const NavItem: React.FC<{ icon: React.ReactNode; label: string; to: string; acti
 
 function App() {
   const { user, isAuthLoading, setUser, setAuthLoading } = useSessionStore();
-  const { clientes, movimientos, cheques, loadAll, selectedClienteId, setSelectedClienteId, isLoading } = useDataStore();
+  const [selectedClienteId, setSelectedClienteId] = useState<number | null>(null)
+  const queryClient = useQueryClient()
+
+  const { data: clientes = [], isLoading: clientesLoading } = useClientesQuery()
+  const { data: movimientos = [], isLoading: movimientosLoading } = useMovimientosQuery()
+  const { data: cheques = [], isLoading: chequesLoading } = useChequesQuery(user)
+
+  const isLoading = clientesLoading || movimientosLoading || chequesLoading
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -72,11 +80,6 @@ function App() {
     };
   }, [setUser, setAuthLoading]);
 
-  useEffect(() => {
-    if (user && clientes.length === 0) {
-      loadAll(user);
-    }
-  }, [user, clientes.length, loadAll]);
 
   const esAdmin = user?.rol.toLowerCase() === 'admin';
 
@@ -199,9 +202,9 @@ function App() {
           ) : (
             <Routes>
               <Route path="/dashboard" element={<Dashboard clientes={clientesVisibles} movimientos={movimientosVisibles} cheques={chequesVisibles} currentUser={user} />} />
-              <Route path="/clientes" element={<ClientesView clientes={clientesVisibles} movimientos={movimientos} currentUser={user} onVerEstadoCuenta={handleVerEstadoCuenta} onClienteCreado={() => loadAll(user)} />} />
-              <Route path="/clientes/:id" element={selectedClienteId ? <EstadoCuentaView clienteId={selectedClienteId} clientes={clientes} movimientos={estadoCuentaMovimientos} onVolver={() => navigate('/clientes')} currentUser={user} onMovimientoChange={() => loadAll(user)} /> : <Navigate to="/clientes" />} />
-              <Route path="/movimientos" element={<MovimientosView currentUser={user} movimientos={movimientosVisibles} onMovimientoChange={() => loadAll(user)} />} />
+              <Route path="/clientes" element={<ClientesView clientes={clientesVisibles} movimientos={movimientos} currentUser={user} onVerEstadoCuenta={handleVerEstadoCuenta} onClienteCreado={() => queryClient.invalidateQueries(['clientes'])} />} />
+              <Route path="/clientes/:id" element={selectedClienteId ? <EstadoCuentaView clienteId={selectedClienteId} clientes={clientes} movimientos={estadoCuentaMovimientos} onVolver={() => navigate('/clientes')} currentUser={user} onMovimientoChange={() => queryClient.invalidateQueries(['movimientos'])} /> : <Navigate to="/clientes" />} />
+              <Route path="/movimientos" element={<MovimientosView currentUser={user} movimientos={movimientosVisibles} onMovimientoChange={() => queryClient.invalidateQueries(['movimientos'])} />} />
               {esAdmin && <Route path="/cheques" element={<ChequesView currentUser={user} />} />}
               {esAdmin && <Route path="/vendedores" element={<VendedoresView currentUser={user} />} />}
               {esAdmin && <Route path="/comisiones" element={<ComisionesView currentUser={user} />} />}

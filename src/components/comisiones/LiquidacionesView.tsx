@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { FileText, Download, Printer, Eye, X, Loader2, Trash2, AlertTriangle } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase, formatearFecha } from '../../lib/supabase'
+import { useLiquidacionesQuery, usePeriodosCalculadosQuery } from '../../hooks/useQueries'
 import { LiquidacionComision, PeriodoComision, formatearMonedaComision, formatearPeriodo, DetalleCalculoComision, formatearPorcentaje } from '../../types/comisiones'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -10,35 +12,16 @@ interface LiquidacionesViewProps {
 }
 
 const LiquidacionesView: React.FC<LiquidacionesViewProps> = ({ currentUser }) => {
-  const [liquidaciones, setLiquidaciones] = useState<LiquidacionComision[]>([])
-  const [periodosCalculados, setPeriodosCalculados] = useState<PeriodoComision[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data: liquidaciones = [], isLoading: liquidacionesLoading } = useLiquidacionesQuery()
+  const { data: periodosCalculados = [], isLoading: periodosLoading } = usePeriodosCalculadosQuery()
+  const loading = liquidacionesLoading || periodosLoading
   const [generando, setGenerando] = useState<number | null>(null)
   const [eliminando, setEliminando] = useState<number | null>(null)
   const [verDetalle, setVerDetalle] = useState<{ liquidacion: LiquidacionComision | null, detalles: DetalleCalculoComision[] }>({ liquidacion: null, detalles: [] });
   const [loadingDetalle, setLoadingDetalle] = useState(false);
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState<LiquidacionComision | null>(null);
 
-  useEffect(() => { loadData() }, [])
-
-  const loadData = async () => {
-    setLoading(true)
-    try {
-      const { data: liqData, error: liqError } = await supabase.from('liquidaciones_comision').select(`*, usuarios:vendedor_id(nombre), generado_por_usuario:generado_por(nombre)`).order('fecha_liquidacion', { ascending: false })
-      if (liqError) throw liqError;
-
-      const { data: perData, error: perError } = await supabase.from('periodos_comision').select(`*, usuarios:vendedor_id(nombre)`).eq('estado', 'calculado').order('periodo_inicio')
-      if (perError) throw perError;
-
-      setLiquidaciones((liqData as any) || [])
-      setPeriodosCalculados((perData as any) || [])
-    } catch (error) {
-        console.error('Error cargando datos de liquidaciones:', error);
-        alert('Hubo un error al cargar los datos. Revise la consola.');
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const generarLiquidacion = async (periodo: PeriodoComision) => {
     setGenerando(periodo.id);
@@ -107,7 +90,8 @@ const LiquidacionesView: React.FC<LiquidacionesViewProps> = ({ currentUser }) =>
       
       await supabase.from('periodos_comision').update({ estado: 'liquidado', liquidado_en: new Date().toISOString() }).eq('id', periodo.id);
       alert(`✅ Liquidación ${numeroRecibo} generada.`);
-      loadData();
+      queryClient.invalidateQueries(['liquidaciones']);
+      queryClient.invalidateQueries(['periodosCalculados']);
     } catch (error: any) {
       alert(`❌ Error generando liquidación: ${error.message}`);
     } finally {
@@ -167,7 +151,8 @@ const LiquidacionesView: React.FC<LiquidacionesViewProps> = ({ currentUser }) =>
       alert(`✅ Liquidación ${mostrarConfirmacion.numero_recibo} eliminada correctamente.\nEl período ha vuelto al estado "calculado".`);
       
       setMostrarConfirmacion(null);
-      loadData();
+      queryClient.invalidateQueries(['liquidaciones']);
+      queryClient.invalidateQueries(['periodosCalculados']);
     } catch (error: any) {
       console.error('❌ Error eliminando liquidación:', error);
       alert(`❌ Error al eliminar la liquidación:\n\n${error.message}`);

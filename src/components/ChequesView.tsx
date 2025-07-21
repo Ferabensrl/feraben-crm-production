@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Plus, Edit, Trash2, Calendar, DollarSign, User, FileText, Download } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase, formatearMoneda, formatearFecha } from '../lib/supabase'
+import { useClientesQuery, useChequesQuery } from '../hooks/useQueries'
 
 interface Cheque {
   id: number
@@ -34,9 +36,10 @@ interface ChequesViewProps {
 }
 
 export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
-  const [cheques, setCheques] = useState<Cheque[]>([])
-  const [clientes, setClientes] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data: cheques = [], isLoading: chequesLoading } = useChequesQuery(currentUser)
+  const { data: clientes = [], isLoading: clientesLoading } = useClientesQuery()
+  const loading = chequesLoading || clientesLoading
   const [showFormulario, setShowFormulario] = useState(false)
   const [chequeEditando, setChequeEditando] = useState<Cheque | null>(null)
   const [eliminando, setEliminando] = useState<number | null>(null)
@@ -53,63 +56,6 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
     comentario: ''
   })
 
-  useEffect(() => {
-    loadData()
-  }, [currentUser])
-
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      
-      // Cargar cheques - 🔧 CORRECCIÓN: Sin join a usuarios
-      let chequesQuery = supabase
-        .from('cheques')
-        .select(`
-          *,
-          clientes (razon_social)
-        `)
-        .order('fecha_vencimiento', { ascending: false })
-
-      // Filtrar por vendedor si no es admin
-      if (currentUser.rol.toLowerCase() !== 'admin') {
-        chequesQuery = chequesQuery.eq('vendedor_id', currentUser.id)
-      }
-
-      const { data: chequesData, error: chequesError } = await chequesQuery
-      
-      if (chequesError) {
-        console.error('Error cargando cheques:', chequesError)
-        throw chequesError
-      }
-
-      // Cargar clientes para el formulario
-      let clientesQuery = supabase
-        .from('clientes')
-        .select('id, razon_social, vendedor_id, activo')
-        .eq('activo', true)
-        .order('razon_social')
-
-      if (currentUser.rol.toLowerCase() !== 'admin') {
-        clientesQuery = clientesQuery.eq('vendedor_id', currentUser.id)
-      }
-
-      const { data: clientesData, error: clientesError } = await clientesQuery
-      
-      if (clientesError) {
-        console.error('Error cargando clientes:', clientesError)
-        throw clientesError
-      }
-
-      setCheques(chequesData || [])
-      setClientes(clientesData || [])
-      
-    } catch (error: any) {
-      console.error('Error cargando datos:', error)
-      alert(`Error cargando datos: ${error.message}`)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const chequesFiltrados = cheques.filter(cheque => {
     if (!filtroEstado) return true
@@ -178,7 +124,7 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
 
       setShowFormulario(false)
       resetForm()
-      loadData()
+      queryClient.invalidateQueries(['cheques'])
       
     } catch (error: any) {
       console.error('Error guardando cheque:', error)
@@ -223,7 +169,7 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
       
       if (error) throw error
       alert('✅ Cheque eliminado')
-      loadData()
+      queryClient.invalidateQueries(['cheques'])
     } catch (error: any) {
       alert(`Error eliminando cheque: ${error.message}`)
     } finally {

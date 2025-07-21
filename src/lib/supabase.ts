@@ -279,3 +279,58 @@ export const obtenerEstadisticas = async () => {
     return null;
   }
 }
+
+// ========================
+// Inventario
+// ========================
+
+export interface InventarioItem {
+  id: number;
+  sku: string;
+  descripcion?: string | null;
+  categoria?: string | null;
+  stock: number;
+  precio: number;
+}
+
+export const getInventario = async (): Promise<InventarioItem[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('inventario')
+      .select('*')
+      .order('sku');
+    if (error) throw error;
+    return (data || []) as InventarioItem[];
+  } catch (error) {
+    logger.error('❌ Error cargando inventario:', error);
+    return [];
+  }
+};
+
+export const ajustarInventario = async (
+  sku: string,
+  cantidad: number
+): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from('inventario')
+      .select('stock')
+      .eq('sku', sku)
+      .single();
+
+    if (error) throw error;
+
+    const nuevoStock = (data?.stock || 0) + cantidad;
+
+    const { error: updateError } = await supabase
+      .from('inventario')
+      .update({ stock: nuevoStock })
+      .eq('sku', sku);
+
+    if (updateError) throw updateError;
+
+    logger.log(`✅ Inventario actualizado para ${sku}: ${nuevoStock}`);
+  } catch (err) {
+    logger.error('❌ Error ajustando inventario:', err);
+  }
+};

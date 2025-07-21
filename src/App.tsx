@@ -1,5 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Users, FileText, BarChart3, LogOut, Menu, X, UserCheck, Calculator, DollarSign, CreditCard, Loader2 } from 'lucide-react';
+import {
+  Users,
+  FileText,
+  BarChart3,
+  LogOut,
+  Menu,
+  X,
+  UserCheck,
+  Calculator,
+  DollarSign,
+  CreditCard,
+  Loader2,
+  Package,
+  FilePlus
+} from 'lucide-react';
 import { supabase } from './lib/supabase';
 import logger from './utils/logger';
 import Dashboard from './components/Dashboard';
@@ -11,6 +25,8 @@ import ComisionesView from './components/comisiones/ComisionesView';
 import LiquidacionesView from './components/comisiones/LiquidacionesView';
 import { ChequesView } from './components/ChequesView';
 import { LoginScreen } from './components/LoginScreen';
+import InventarioView from './views/InventarioView';
+import FacturacionView from './views/FacturacionView';
 import { useSessionStore } from './store/session';
 import { useDataStore } from './store/data';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -177,6 +193,8 @@ function App() {
                 <NavItem icon={<UserCheck size={20} />} label="Vendedores" to="/vendedores" active={isActive('/vendedores')} />
                 <NavItem icon={<Calculator size={20} />} label="Comisiones" to="/comisiones" active={isActive('/comisiones')} />
                 <NavItem icon={<DollarSign size={20} />} label="Liquidaciones" to="/liquidaciones" active={isActive('/liquidaciones')} />
+                <NavItem icon={<Package size={20} />} label="Inventario" to="/inventario" active={isActive('/inventario')} />
+                <NavItem icon={<FilePlus size={20} />} label="Facturación" to="/facturacion" active={isActive('/facturacion')} />
               </div>
             )}
             {!esAdmin && (
@@ -206,6 +224,8 @@ function App() {
               {esAdmin && <Route path="/vendedores" element={<VendedoresView currentUser={user} />} />}
               {esAdmin && <Route path="/comisiones" element={<ComisionesView currentUser={user} />} />}
               {esAdmin && <Route path="/liquidaciones" element={<LiquidacionesView currentUser={user} />} />}
+              {esAdmin && <Route path="/inventario" element={<InventarioView currentUser={user} />} />}
+              {esAdmin && <Route path="/facturacion" element={<FacturacionView />} />}
               <Route path="/" element={<Navigate to="/dashboard" />} />
               <Route path="*" element={<Navigate to="/dashboard" />} />
             </Routes>

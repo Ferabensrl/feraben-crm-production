@@ -1,5 +1,13 @@
 import { create } from 'zustand';
-import { Cliente, Movimiento, getClientes, getMovimientosCompleto, supabase } from '../lib/supabase';
+import {
+  Cliente,
+  Movimiento,
+  getClientes,
+  getMovimientosCompleto,
+  InventarioItem,
+  getInventario,
+  supabase
+} from '../lib/supabase';
 import logger from '../utils/logger';
 import { CurrentUser } from './session';
 
@@ -48,6 +56,7 @@ interface DataState {
   clientes: Cliente[];
   movimientos: Movimiento[];
   cheques: Cheque[];
+  inventario: InventarioItem[];
   selectedClienteId: number | null;
   isLoading: boolean;
   loadAll: (user: CurrentUser) => Promise<void>;
@@ -58,21 +67,24 @@ export const useDataStore = create<DataState>((set) => ({
   clientes: [],
   movimientos: [],
   cheques: [],
+  inventario: [],
   selectedClienteId: null,
   isLoading: false,
   setSelectedClienteId: (id) => set({ selectedClienteId: id }),
   loadAll: async (user: CurrentUser) => {
     set({ isLoading: true });
     try {
-      const [clientesData, movimientosData, chequesData] = await Promise.all([
+      const [clientesData, movimientosData, chequesData, inventarioData] = await Promise.all([
         getClientes(),
         getMovimientosCompleto(),
         loadCheques(user),
+        getInventario(),
       ]);
       set({
         clientes: clientesData,
         movimientos: movimientosData,
         cheques: chequesData,
+        inventario: inventarioData,
         isLoading: false,
       });
     } catch (err) {

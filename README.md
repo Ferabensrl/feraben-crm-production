@@ -22,11 +22,13 @@ npm start
 
 This will start the app on `http://localhost:3000`.
 
-To run tests:
+To run tests, run:
 
 ```bash
 npm test
 ```
+
+This executes the Jest test suite.
 
 ## Build
 

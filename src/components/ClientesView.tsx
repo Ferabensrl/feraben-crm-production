@@ -1,60 +1,86 @@
 // src/components/ClientesView.tsx - VERSIÓN CORREGIDA SIN ERRORES
-import React, { useState, useMemo } from 'react'
-import { Plus, Edit, Trash2, Users, TrendingUp, AlertTriangle, MapPin, User } from 'lucide-react'
-import { Cliente, Movimiento, formatearMoneda, supabase } from '../lib/supabase'
-import { FormularioCliente } from './FormularioCliente'
-import { useBuscadorClientes } from '../hooks/useBuscador'
-import { BuscadorClientes } from './Buscador'
+import React, { useState, useMemo } from 'react';
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Users,
+  TrendingUp,
+  AlertTriangle,
+  MapPin,
+  User,
+} from 'lucide-react';
+import {
+  Cliente,
+  Movimiento,
+  formatearMoneda,
+  supabase,
+} from '../lib/supabase';
+import { FormularioCliente } from './FormularioCliente';
+import { useBuscadorClientes } from '../hooks/useBuscador';
+import { BuscadorClientes } from './Buscador';
 
 interface ClientesViewProps {
-  clientes: Cliente[]
-  movimientos: Movimiento[]
-  currentUser: { id: number; nombre: string; rol: string }
-  onVerEstadoCuenta: (clienteId: number) => void
-  onClienteCreado?: () => void
+  clientes: Cliente[];
+  movimientos: Movimiento[];
+  currentUser: { id: number; nombre: string; rol: string };
+  onVerEstadoCuenta: (clienteId: number) => void;
+  onClienteCreado?: () => void;
 }
 
-const ClientesView: React.FC<ClientesViewProps> = ({ 
-  clientes, 
-  movimientos, 
-  currentUser, 
+const ClientesView: React.FC<ClientesViewProps> = ({
+  clientes,
+  movimientos,
+  currentUser,
   onVerEstadoCuenta,
-  onClienteCreado 
+  onClienteCreado,
 }) => {
   // Estados del componente
-  const [showFormulario, setShowFormulario] = useState(false)
-  const [clienteEditando, setClienteEditando] = useState<Cliente | null>(null)
-  const [eliminando, setEliminando] = useState<number | null>(null)
-  
+  const [showFormulario, setShowFormulario] = useState(false);
+  const [clienteEditando, setClienteEditando] = useState<Cliente | null>(null);
+  const [eliminando, setEliminando] = useState<number | null>(null);
+
   // 🆕 ESTADOS PARA FILTROS AVANZADOS
-  const [filtroVendedor, setFiltroVendedor] = useState('')
-  const [filtroDepartamento, setFiltroDepartamento] = useState('')
-  const [filtroSaldo, setFiltroSaldo] = useState<'todos' | 'con-deuda' | 'a-favor' | 'sin-movimientos'>('todos')
-  const [historialBusquedas, setHistorialBusquedas] = useState<string[]>([])
+  const [filtroVendedor, setFiltroVendedor] = useState('');
+  const [filtroDepartamento, setFiltroDepartamento] = useState('');
+  const [filtroSaldo, setFiltroSaldo] = useState<
+    'todos' | 'con-deuda' | 'a-favor' | 'sin-movimientos'
+  >('todos');
+  const [historialBusquedas, setHistorialBusquedas] = useState<string[]>([]);
 
   // 🔒 DETERMINAR PERMISOS SEGÚN ROL
-  const esAdmin = currentUser.rol.toLowerCase() === 'admin'
-  const puedeCrearClientes = esAdmin // Solo admin puede crear
-  const puedeEditarClientes = esAdmin // Solo admin puede editar
-  const puedeEliminarClientes = esAdmin // Solo admin puede eliminar
+  const esAdmin = currentUser.rol.toLowerCase() === 'admin';
+  const puedeCrearClientes = esAdmin; // Solo admin puede crear
+  const puedeEditarClientes = esAdmin; // Solo admin puede editar
+  const puedeEliminarClientes = esAdmin; // Solo admin puede eliminar
 
   // 🔧 CORRECCIÓN: Pre-calcular saldos usando TODOS los movimientos
   const saldosPorCliente = useMemo(() => {
-    console.log('💰 Calculando saldos para', movimientos.length, 'movimientos...');
-    
-    const saldos: { [key: number]: number } = {}
+    console.log(
+      '💰 Calculando saldos para',
+      movimientos.length,
+      'movimientos...'
+    );
+
+    const saldos: { [key: number]: number } = {};
     let movimientosProcesados = 0;
-    
+
     for (const mov of movimientos) {
-      if (mov.cliente_id && typeof mov.importe === 'number' && !isNaN(mov.importe)) {
-        saldos[mov.cliente_id] = (saldos[mov.cliente_id] || 0) + mov.importe
+      if (
+        mov.cliente_id &&
+        typeof mov.importe === 'number' &&
+        !isNaN(mov.importe)
+      ) {
+        saldos[mov.cliente_id] = (saldos[mov.cliente_id] || 0) + mov.importe;
         movimientosProcesados++;
       }
     }
-    
-    console.log(`✅ Saldos calculados para ${Object.keys(saldos).length} clientes`);
-    return saldos
-  }, [movimientos])
+
+    console.log(
+      `✅ Saldos calculados para ${Object.keys(saldos).length} clientes`
+    );
+    return saldos;
+  }, [movimientos]);
 
   // 🔧 CORRECCIÓN: Aplicar filtros según el rol del usuario
   const clientesFiltradosPorRol = useMemo(() => {
@@ -62,20 +88,24 @@ const ClientesView: React.FC<ClientesViewProps> = ({
       console.log('👑 Admin - Mostrando todos los clientes:', clientes.length);
       return clientes;
     } else {
-      const clientesDelVendedor = clientes.filter(c => c.vendedor_id === currentUser.id);
-      console.log(`👤 Vendedor ${currentUser.nombre} - Clientes asignados: ${clientesDelVendedor.length}`);
+      const clientesDelVendedor = clientes.filter(
+        (c) => c.vendedor_id === currentUser.id
+      );
+      console.log(
+        `👤 Vendedor ${currentUser.nombre} - Clientes asignados: ${clientesDelVendedor.length}`
+      );
       return clientesDelVendedor;
     }
   }, [clientes, currentUser, esAdmin]);
 
   // 🔍 INTEGRACIÓN DEL BUSCADOR INTELIGENTE
-  const { 
-    termino, 
-    setTermino, 
+  const {
+    termino,
+    setTermino,
     resultados: clientesBuscados,
     limpiarBusqueda,
     cantidadResultados,
-    esBusquedaActiva 
+    esBusquedaActiva,
   } = useBuscadorClientes(clientesFiltradosPorRol);
 
   // 🎯 APLICAR FILTROS AVANZADOS SOBRE LOS RESULTADOS DE BÚSQUEDA
@@ -84,20 +114,24 @@ const ClientesView: React.FC<ClientesViewProps> = ({
 
     // Filtro por vendedor
     if (filtroVendedor) {
-      resultado = resultado.filter(c => c.vendedor_id.toString() === filtroVendedor);
+      resultado = resultado.filter(
+        (c) => c.vendedor_id.toString() === filtroVendedor
+      );
     }
 
     // Filtro por departamento
     if (filtroDepartamento) {
-      resultado = resultado.filter(c => c.departamento === filtroDepartamento);
+      resultado = resultado.filter(
+        (c) => c.departamento === filtroDepartamento
+      );
     }
 
     // Filtro por saldo
     if (filtroSaldo !== 'todos') {
-      resultado = resultado.filter(c => {
+      resultado = resultado.filter((c) => {
         const saldo = saldosPorCliente[c.id] || 0;
-        const tieneMovimientos = movimientos.some(m => m.cliente_id === c.id);
-        
+        const tieneMovimientos = movimientos.some((m) => m.cliente_id === c.id);
+
         switch (filtroSaldo) {
           case 'con-deuda':
             return saldo > 0.01;
@@ -112,29 +146,50 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     }
 
     return resultado;
-  }, [clientesBuscados, filtroVendedor, filtroDepartamento, filtroSaldo, saldosPorCliente, movimientos]);
+  }, [
+    clientesBuscados,
+    filtroVendedor,
+    filtroDepartamento,
+    filtroSaldo,
+    saldosPorCliente,
+    movimientos,
+  ]);
 
   // 📊 ESTADÍSTICAS DINÁMICAS
   const estadisticas = useMemo(() => {
     const totalClientes = clientesFinales.length;
-    const clientesConDeuda = clientesFinales.filter(c => (saldosPorCliente[c.id] || 0) > 0.01).length;
-    const totalDeuda = clientesFinales.reduce((sum, c) => sum + Math.max(0, saldosPorCliente[c.id] || 0), 0);
-    const clientesSinMovimientos = clientesFinales.filter(c => !movimientos.some(m => m.cliente_id === c.id)).length;
+    const clientesConDeuda = clientesFinales.filter(
+      (c) => (saldosPorCliente[c.id] || 0) > 0.01
+    ).length;
+    const totalDeuda = clientesFinales.reduce(
+      (sum, c) => sum + Math.max(0, saldosPorCliente[c.id] || 0),
+      0
+    );
+    const clientesSinMovimientos = clientesFinales.filter(
+      (c) => !movimientos.some((m) => m.cliente_id === c.id)
+    ).length;
 
     return {
       totalClientes,
       clientesConDeuda,
       totalDeuda,
-      clientesSinMovimientos
+      clientesSinMovimientos,
     };
   }, [clientesFinales, saldosPorCliente, movimientos]);
 
   // 🎯 OBTENER LISTAS ÚNICAS PARA FILTROS - CORREGIDO SIN SPREAD
   const vendedoresUnicos = useMemo(() => {
     const vendedoresMap = new Map();
-    clientes.forEach(c => {
-      if (c.vendedor_id && c.vendedor_nombre && !vendedoresMap.has(c.vendedor_id)) {
-        vendedoresMap.set(c.vendedor_id, { id: c.vendedor_id, nombre: c.vendedor_nombre });
+    clientes.forEach((c) => {
+      if (
+        c.vendedor_id &&
+        c.vendedor_nombre &&
+        !vendedoresMap.has(c.vendedor_id)
+      ) {
+        vendedoresMap.set(c.vendedor_id, {
+          id: c.vendedor_id,
+          nombre: c.vendedor_nombre,
+        });
       }
     });
     return Array.from(vendedoresMap.values());
@@ -142,7 +197,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
 
   const departamentosUnicos = useMemo(() => {
     const deptSet = new Set<string>();
-    clientes.forEach(c => {
+    clientes.forEach((c) => {
       if (c.departamento) {
         deptSet.add(c.departamento);
       }
@@ -153,10 +208,16 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   // 🔍 MANEJO DE BÚSQUEDA CON HISTORIAL
   const manejarBusqueda = (nuevoTermino: string) => {
     setTermino(nuevoTermino);
-    
+
     // Agregar al historial si es una búsqueda nueva
-    if (nuevoTermino.trim() && !historialBusquedas.includes(nuevoTermino.trim())) {
-      setHistorialBusquedas(prev => [nuevoTermino.trim(), ...prev.slice(0, 4)]);
+    if (
+      nuevoTermino.trim() &&
+      !historialBusquedas.includes(nuevoTermino.trim())
+    ) {
+      setHistorialBusquedas((prev) => [
+        nuevoTermino.trim(),
+        ...prev.slice(0, 4),
+      ]);
     }
   };
 
@@ -170,7 +231,9 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         // Aquí podrías agregar un filtro por clientes activos si tienes ese campo
         break;
       case 'montevideo':
-        setFiltroDepartamento(filtroDepartamento === 'Montevideo' ? '' : 'Montevideo');
+        setFiltroDepartamento(
+          filtroDepartamento === 'Montevideo' ? '' : 'Montevideo'
+        );
         break;
     }
   };
@@ -178,81 +241,85 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   // 🔧 FUNCIÓN PARA OBTENER INFORMACIÓN DEL SALDO CON VALIDACIÓN
   const obtenerInfoSaldo = (clienteId: number) => {
     const saldo = saldosPorCliente[clienteId] || 0;
-    const movimientosCliente = movimientos.filter(m => m.cliente_id === clienteId);
-    
+    const movimientosCliente = movimientos.filter(
+      (m) => m.cliente_id === clienteId
+    );
+
     return {
       saldo,
       cantidadMovimientos: movimientosCliente.length,
-      tieneMovimientos: movimientosCliente.length > 0
+      tieneMovimientos: movimientosCliente.length > 0,
     };
   };
 
   // 🎯 FUNCIÓN PARA RESALTAR TEXTO DE BÚSQUEDA
   const resaltarTexto = (texto: string, busqueda: string) => {
     if (!busqueda.trim()) return texto;
-    
+
     const regex = new RegExp(`(${busqueda})`, 'gi');
     const partes = texto.split(regex);
-    
-    return partes.map((parte, index) => 
+
+    return partes.map((parte, index) =>
       regex.test(parte) ? (
         <mark key={index} className="bg-yellow-200 px-1 rounded">
           {parte}
         </mark>
-      ) : parte
+      ) : (
+        parte
+      )
     );
   };
 
   const handleClienteGuardado = () => {
     if (onClienteCreado) {
-      onClienteCreado()
+      onClienteCreado();
     }
-    cerrarFormulario()
-  }
+    cerrarFormulario();
+  };
 
   const cerrarFormulario = () => {
-    setShowFormulario(false)
-    setClienteEditando(null)
-  }
+    setShowFormulario(false);
+    setClienteEditando(null);
+  };
 
   const handleEditarCliente = (cliente: Cliente) => {
     if (!puedeEditarClientes) {
-      alert('❌ No tienes permisos para editar clientes')
-      return
+      alert('❌ No tienes permisos para editar clientes');
+      return;
     }
-    setClienteEditando(cliente)
-    setShowFormulario(true)
-  }
+    setClienteEditando(cliente);
+    setShowFormulario(true);
+  };
 
   const handleEliminarCliente = async (cliente: Cliente) => {
     if (!puedeEliminarClientes) {
-      alert('❌ No tienes permisos para eliminar clientes')
-      return
+      alert('❌ No tienes permisos para eliminar clientes');
+      return;
     }
 
     const infoSaldo = obtenerInfoSaldo(cliente.id);
-    
-    let confirmMessage = `🗑️ ¿ELIMINAR CLIENTE?\n\nCliente: ${cliente.razon_social}\nRUT: ${cliente.rut}\n`
+
+    let confirmMessage = `🗑️ ¿ELIMINAR CLIENTE?\n\nCliente: ${cliente.razon_social}\nRUT: ${cliente.rut}\n`;
 
     if (infoSaldo.tieneMovimientos) {
-      confirmMessage += `\n⚠️ ATENCIÓN: Este cliente tiene ${infoSaldo.cantidadMovimientos} movimientos y un saldo de ${formatearMoneda(infoSaldo.saldo)}.\nSi lo eliminas, se borrarán TODOS sus movimientos y cheques asociados.\n`
+      confirmMessage += `\n⚠️ ATENCIÓN: Este cliente tiene ${infoSaldo.cantidadMovimientos} movimientos y un saldo de ${formatearMoneda(infoSaldo.saldo)}.\nSi lo eliminas, se borrarán TODOS sus movimientos y cheques asociados.\n`;
     }
 
-    confirmMessage += `\nEsta acción NO se puede deshacer.\n\n¿Continuar?`
+    confirmMessage += `\nEsta acción NO se puede deshacer.\n\n¿Continuar?`;
 
-    if (!window.confirm(confirmMessage)) return
+    if (!window.confirm(confirmMessage)) return;
 
     try {
-      setEliminando(cliente.id)
-      
+      setEliminando(cliente.id);
+
       console.log(`🗑️ Eliminando cliente ${cliente.razon_social}...`);
-      
+
       // 1. Eliminar cheques asociados
       const { error: chequesError } = await supabase
         .from('cheques')
         .delete()
-        .eq('cliente_id', cliente.id)
-      
+        .eq('cliente_id', cliente.id);
+
       if (chequesError) {
         console.error('Error eliminando cheques:', chequesError);
         throw new Error(`Error eliminando cheques: ${chequesError.message}`);
@@ -262,37 +329,39 @@ const ClientesView: React.FC<ClientesViewProps> = ({
       const { error: movimientosError } = await supabase
         .from('movimientos')
         .delete()
-        .eq('cliente_id', cliente.id)
-      
+        .eq('cliente_id', cliente.id);
+
       if (movimientosError) {
         console.error('Error eliminando movimientos:', movimientosError);
-        throw new Error(`Error eliminando movimientos: ${movimientosError.message}`);
+        throw new Error(
+          `Error eliminando movimientos: ${movimientosError.message}`
+        );
       }
 
       // 3. Finalmente eliminar el cliente
       const { error: clienteError } = await supabase
         .from('clientes')
         .delete()
-        .eq('id', cliente.id)
-      
+        .eq('id', cliente.id);
+
       if (clienteError) {
         console.error('Error eliminando cliente:', clienteError);
         throw new Error(`Error eliminando cliente: ${clienteError.message}`);
       }
 
       console.log('✅ Cliente eliminado correctamente');
-      alert(`✅ Cliente "${cliente.razon_social}" eliminado correctamente.`)
-      
+      alert(`✅ Cliente "${cliente.razon_social}" eliminado correctamente.`);
+
       if (onClienteCreado) {
-        onClienteCreado()
+        onClienteCreado();
       }
     } catch (error: any) {
       console.error('❌ Error eliminando cliente:', error);
-      alert(`❌ Error eliminando cliente: ${error.message}`)
+      alert(`❌ Error eliminando cliente: ${error.message}`);
     } finally {
-      setEliminando(null)
+      setEliminando(null);
     }
-  }
+  };
 
   // 🎨 COMPONENTE VACÍO MEJORADO
   if (clientesFiltradosPorRol.length === 0) {
@@ -300,11 +369,13 @@ const ClientesView: React.FC<ClientesViewProps> = ({
       <div className="text-center py-12">
         <div className="text-6xl mb-4">👥</div>
         <h3 className="text-xl font-semibold text-gray-900 mb-2">
-          {esAdmin ? 'No hay clientes registrados' : 'No tienes clientes asignados'}
+          {esAdmin
+            ? 'No hay clientes registrados'
+            : 'No tienes clientes asignados'}
         </h3>
         <p className="text-gray-600 mb-6">
-          {esAdmin 
-            ? 'Comienza agregando tu primer cliente al sistema.' 
+          {esAdmin
+            ? 'Comienza agregando tu primer cliente al sistema.'
             : 'Contacta al administrador para que te asigne clientes.'}
         </p>
         {puedeCrearClientes && (
@@ -317,7 +388,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
           </button>
         )}
       </div>
-    )
+    );
   }
 
   return (
@@ -332,15 +403,18 @@ const ClientesView: React.FC<ClientesViewProps> = ({
           <p className="text-gray-600 mt-1">
             {esBusquedaActiva ? (
               <span>
-                {cantidadResultados} de {clientesFiltradosPorRol.length} clientes encontrados
-                {termino && <span className="text-primary"> • Buscando: "{termino}"</span>}
+                {cantidadResultados} de {clientesFiltradosPorRol.length}{' '}
+                clientes encontrados
+                {termino && (
+                  <span className="text-primary"> • Buscando: "{termino}"</span>
+                )}
               </span>
             ) : (
               `${clientesFiltradosPorRol.length} clientes ${esAdmin ? 'registrados en el sistema' : 'asignados a ti'}`
             )}
           </p>
         </div>
-        
+
         {/* ❌ BOTÓN CREAR SOLO PARA ADMIN */}
         {puedeCrearClientes && (
           <button
@@ -358,38 +432,48 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Clientes</p>
-              <p className="text-2xl font-bold text-gray-900">{estadisticas.totalClientes}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Total Clientes
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {estadisticas.totalClientes}
+              </p>
             </div>
             <Users className="text-blue-500" size={24} />
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Con Deuda</p>
-              <p className="text-2xl font-bold text-red-600">{estadisticas.clientesConDeuda}</p>
+              <p className="text-2xl font-bold text-red-600">
+                {estadisticas.clientesConDeuda}
+              </p>
             </div>
             <AlertTriangle className="text-red-500" size={24} />
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Deuda Total</p>
-              <p className="text-lg font-bold text-green-600">{formatearMoneda(estadisticas.totalDeuda)}</p>
+              <p className="text-lg font-bold text-green-600">
+                {formatearMoneda(estadisticas.totalDeuda)}
+              </p>
             </div>
             <TrendingUp className="text-green-500" size={24} />
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-gray-500">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Sin Actividad</p>
-              <p className="text-2xl font-bold text-gray-600">{estadisticas.clientesSinMovimientos}</p>
+              <p className="text-2xl font-bold text-gray-600">
+                {estadisticas.clientesSinMovimientos}
+              </p>
             </div>
             <MapPin className="text-gray-500" size={24} />
           </div>
@@ -413,14 +497,16 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Filtro por vendedor */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Vendedor</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Vendedor
+            </label>
             <select
               value={filtroVendedor}
               onChange={(e) => setFiltroVendedor(e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
             >
               <option value="">Todos los vendedores</option>
-              {vendedoresUnicos.map(v => (
+              {vendedoresUnicos.map((v) => (
                 <option key={v.id} value={v.id.toString()}>
                   {v.nombre}
                 </option>
@@ -430,14 +516,16 @@ const ClientesView: React.FC<ClientesViewProps> = ({
 
           {/* Filtro por departamento */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Departamento
+            </label>
             <select
               value={filtroDepartamento}
               onChange={(e) => setFiltroDepartamento(e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
             >
               <option value="">Todos los departamentos</option>
-              {departamentosUnicos.map(dept => (
+              {departamentosUnicos.map((dept) => (
                 <option key={dept} value={dept}>
                   {dept}
                 </option>
@@ -447,7 +535,9 @@ const ClientesView: React.FC<ClientesViewProps> = ({
 
           {/* Filtro por saldo */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Estado de Cuenta</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Estado de Cuenta
+            </label>
             <select
               value={filtroSaldo}
               onChange={(e) => setFiltroSaldo(e.target.value as any)}
@@ -481,9 +571,14 @@ const ClientesView: React.FC<ClientesViewProps> = ({
       {clientesFinales.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <Users size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron clientes</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No se encontraron clientes
+          </h3>
           <p className="text-gray-500 mb-4">
-            {esBusquedaActiva || filtroVendedor || filtroDepartamento || filtroSaldo !== 'todos'
+            {esBusquedaActiva ||
+            filtroVendedor ||
+            filtroDepartamento ||
+            filtroSaldo !== 'todos'
               ? 'Intenta ajustar los filtros de búsqueda.'
               : 'No hay clientes que coincidan con los criterios.'}
           </p>
@@ -528,45 +623,72 @@ const ClientesView: React.FC<ClientesViewProps> = ({
               <tbody className="bg-white divide-y divide-gray-200">
                 {clientesFinales.map((cliente) => {
                   const infoSaldo = obtenerInfoSaldo(cliente.id);
-                  
+
                   return (
-                    <tr key={cliente.id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={cliente.id}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {esBusquedaActiva ? resaltarTexto(cliente.razon_social, termino) : cliente.razon_social}
+                            {esBusquedaActiva
+                              ? resaltarTexto(cliente.razon_social, termino)
+                              : cliente.razon_social}
                           </div>
                           {cliente.nombre_fantasia && (
                             <div className="text-sm text-gray-500">
-                              {esBusquedaActiva ? resaltarTexto(cliente.nombre_fantasia, termino) : cliente.nombre_fantasia}
+                              {esBusquedaActiva
+                                ? resaltarTexto(
+                                    cliente.nombre_fantasia,
+                                    termino
+                                  )
+                                : cliente.nombre_fantasia}
                             </div>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {esBusquedaActiva ? resaltarTexto(cliente.rut, termino) : cliente.rut}
+                        {esBusquedaActiva
+                          ? resaltarTexto(cliente.rut, termino)
+                          : cliente.rut}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex items-center">
                           <MapPin size={14} className="mr-1 text-gray-400" />
                           <div>
-                            <div>{esBusquedaActiva ? resaltarTexto(cliente.ciudad, termino) : cliente.ciudad}</div>
-                            <div className="text-xs">{cliente.departamento}</div>
+                            <div>
+                              {esBusquedaActiva
+                                ? resaltarTexto(cliente.ciudad, termino)
+                                : cliente.ciudad}
+                            </div>
+                            <div className="text-xs">
+                              {cliente.departamento}
+                            </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex items-center">
                           <User size={14} className="mr-1 text-gray-400" />
-                          {esBusquedaActiva ? resaltarTexto(cliente.vendedor_nombre || 'Sin asignar', termino) : (cliente.vendedor_nombre || 'Sin asignar')}
+                          {esBusquedaActiva
+                            ? resaltarTexto(
+                                cliente.vendedor_nombre || 'Sin asignar',
+                                termino
+                              )
+                            : cliente.vendedor_nombre || 'Sin asignar'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className={`text-sm font-medium ${
-                          infoSaldo.saldo > 0.01 ? 'text-red-600' : 
-                          infoSaldo.saldo < -0.01 ? 'text-green-600' : 
-                          'text-gray-900'
-                        }`}>
+                        <div
+                          className={`text-sm font-medium ${
+                            infoSaldo.saldo > 0.01
+                              ? 'text-red-600'
+                              : infoSaldo.saldo < -0.01
+                                ? 'text-green-600'
+                                : 'text-gray-900'
+                          }`}
+                        >
                           {formatearMoneda(infoSaldo.saldo)}
                         </div>
                         {infoSaldo.tieneMovimientos && (
@@ -585,7 +707,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                           >
                             📊
                           </button>
-                          
+
                           {/* ❌ EDITAR SOLO ADMIN */}
                           {puedeEditarClientes && (
                             <button
@@ -596,7 +718,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                               <Edit size={16} />
                             </button>
                           )}
-                          
+
                           {/* ❌ ELIMINAR SOLO ADMIN */}
                           {puedeEliminarClientes && (
                             <button
@@ -629,10 +751,14 @@ const ClientesView: React.FC<ClientesViewProps> = ({
           <div className="flex items-center">
             <User className="text-blue-600 mr-3" size={20} />
             <div>
-              <h4 className="text-sm font-medium text-blue-900">Vista de Vendedor - Solo Consulta</h4>
+              <h4 className="text-sm font-medium text-blue-900">
+                Vista de Vendedor - Solo Consulta
+              </h4>
               <p className="text-sm text-blue-700">
-                Estás viendo únicamente tus clientes asignados. Puedes consultar sus estados de cuenta pero no modificar la información.
-                {estadisticas.totalClientes > 0 && ` Tienes ${estadisticas.totalClientes} clientes bajo tu gestión.`}
+                Estás viendo únicamente tus clientes asignados. Puedes consultar
+                sus estados de cuenta pero no modificar la información.
+                {estadisticas.totalClientes > 0 &&
+                  ` Tienes ${estadisticas.totalClientes} clientes bajo tu gestión.`}
               </p>
             </div>
           </div>
@@ -650,7 +776,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         />
       )}
     </div>
-  )
-}
+  );
+};
 
-export default ClientesView
+export default ClientesView;

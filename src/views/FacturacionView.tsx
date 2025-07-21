@@ -11,9 +11,9 @@ const FacturacionView: React.FC = () => {
       head: [['SKU', 'Cantidad', 'Precio']],
       body: [
         ['PROD1', '1', '$100'],
-        ['PROD2', '2', '$200']
+        ['PROD2', '2', '$200'],
       ],
-      startY: 30
+      startY: 30,
     });
     doc.save('factura.pdf');
   };

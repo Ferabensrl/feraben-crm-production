@@ -14,9 +14,9 @@ interface SessionState {
   setAuthLoading: (loading: boolean) => void;
 }
 
-export const useSessionStore = create<SessionState>(set => ({
+export const useSessionStore = create<SessionState>((set) => ({
   user: null,
   isAuthLoading: true,
-  setUser: user => set({ user }),
-  setAuthLoading: loading => set({ isAuthLoading: loading })
+  setUser: (user) => set({ user }),
+  setAuthLoading: (loading) => set({ isAuthLoading: loading }),
 }));

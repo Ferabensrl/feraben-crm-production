@@ -3,7 +3,7 @@ import { useState, useMemo, useCallback } from 'react';
 
 /**
  * 🔍 HOOK BUSCADOR INTELIGENTE FERABEN CRM
- * 
+ *
  * Funcionalidades:
  * - Búsqueda en tiempo real multi-campo
  * - Normalización de texto (sin tildes, espacios, case-insensitive)
@@ -34,7 +34,7 @@ const normalizarTexto = (texto: string): string => {
     .toLowerCase()
     .trim()
     .replace(/[áäâàã]/g, 'a')
-    .replace(/[éëêè]/g, 'e') 
+    .replace(/[éëêè]/g, 'e')
     .replace(/[íïîì]/g, 'i')
     .replace(/[óöôòõ]/g, 'o')
     .replace(/[úüûù]/g, 'u')
@@ -55,28 +55,28 @@ const extraerValorCampo = (objeto: any, campo: string): string => {
 
 // 🎯 FUNCIÓN DE BÚSQUEDA INTELIGENTE
 const buscarEnDatos = <T>(
-  datos: T[], 
-  termino: string, 
+  datos: T[],
+  termino: string,
   campos: string[],
   opciones: { caseSensitive?: boolean; busquedaExacta?: boolean } = {}
 ): T[] => {
   if (!termino.trim()) return datos;
-  
-  const terminoNormalizado = opciones.caseSensitive 
+
+  const terminoNormalizado = opciones.caseSensitive
     ? termino.trim()
     : normalizarTexto(termino);
-  
-  return datos.filter(item => {
-    return campos.some(campo => {
+
+  return datos.filter((item) => {
+    return campos.some((campo) => {
       const valorCampo = extraerValorCampo(item, campo);
-      const valorNormalizado = opciones.caseSensitive 
-        ? valorCampo 
+      const valorNormalizado = opciones.caseSensitive
+        ? valorCampo
         : normalizarTexto(valorCampo);
-      
+
       if (opciones.busquedaExacta) {
         return valorNormalizado === terminoNormalizado;
       }
-      
+
       // 🔍 BÚSQUEDA INTELIGENTE: Coincidencias parciales
       return valorNormalizado.includes(terminoNormalizado);
     });
@@ -85,39 +85,47 @@ const buscarEnDatos = <T>(
 
 // 🚀 HOOK PRINCIPAL
 export const useBuscador = <T>(
-  datos: T[], 
+  datos: T[],
   config: BuscadorConfig
 ): ResultadoBusqueda<T> => {
   const [termino, setTermino] = useState('');
-  
+
   // 🎯 BÚSQUEDA CON MEMOIZACIÓN PARA PERFORMANCE
   const resultados = useMemo(() => {
     console.log(`🔍 Buscando "${termino}" en ${datos.length} registros...`);
-    
+
     const tiempoInicio = performance.now();
     const resultado = buscarEnDatos(datos, termino, config.campos, {
       caseSensitive: config.caseSensitive,
-      busquedaExacta: config.busquedaExacta
+      busquedaExacta: config.busquedaExacta,
     });
     const tiempoFin = performance.now();
-    
-    console.log(`✅ Búsqueda completada en ${(tiempoFin - tiempoInicio).toFixed(2)}ms - ${resultado.length} resultados`);
-    
+
+    console.log(
+      `✅ Búsqueda completada en ${(tiempoFin - tiempoInicio).toFixed(2)}ms - ${resultado.length} resultados`
+    );
+
     return resultado;
-  }, [datos, termino, config.campos, config.caseSensitive, config.busquedaExacta]);
-  
+  }, [
+    datos,
+    termino,
+    config.campos,
+    config.caseSensitive,
+    config.busquedaExacta,
+  ]);
+
   // 🧹 FUNCIÓN PARA LIMPIAR BÚSQUEDA
   const limpiarBusqueda = useCallback(() => {
     setTermino('');
   }, []);
-  
+
   return {
     termino,
     setTermino,
     resultados,
     limpiarBusqueda,
     cantidadResultados: resultados.length,
-    esBusquedaActiva: termino.trim().length > 0
+    esBusquedaActiva: termino.trim().length > 0,
   };
 };
 
@@ -126,18 +134,18 @@ export const useBuscadorClientes = (clientes: any[]) => {
   return useBuscador(clientes, {
     campos: [
       'razon_social',
-      'rut', 
+      'rut',
       'nombre_fantasia',
       'email',
       'ciudad',
       'departamento',
-      'vendedor_nombre'
+      'vendedor_nombre',
     ],
-    debounceMs: 300
+    debounceMs: 300,
   });
 };
 
-// 📋 HOOK ESPECIALIZADO PARA MOVIMIENTOS  
+// 📋 HOOK ESPECIALIZADO PARA MOVIMIENTOS
 export const useBuscadorMovimientos = (movimientos: any[]) => {
   return useBuscador(movimientos, {
     campos: [
@@ -145,9 +153,9 @@ export const useBuscadorMovimientos = (movimientos: any[]) => {
       'tipo_movimiento',
       'comentario',
       'clientes.razon_social',
-      'usuarios.nombre'
+      'usuarios.nombre',
     ],
-    debounceMs: 300
+    debounceMs: 300,
   });
 };
 
@@ -159,9 +167,9 @@ export const useBuscadorCheques = (cheques: any[]) => {
       'banco',
       'clientes.razon_social',
       'usuarios.nombre',
-      'estado'
+      'estado',
     ],
-    debounceMs: 300
+    debounceMs: 300,
   });
 };
 
@@ -174,15 +182,15 @@ export const filtrarPorRangoFechas = <T extends { fecha: string }>(
   fechaHasta?: string
 ): T[] => {
   if (!fechaDesde && !fechaHasta) return datos;
-  
-  return datos.filter(item => {
+
+  return datos.filter((item) => {
     const fecha = new Date(item.fecha + 'T00:00:00');
     const desde = fechaDesde ? new Date(fechaDesde + 'T00:00:00') : null;
     const hasta = fechaHasta ? new Date(fechaHasta + 'T23:59:59') : null;
-    
+
     if (desde && fecha < desde) return false;
     if (hasta && fecha > hasta) return false;
-    
+
     return true;
   });
 };
@@ -194,8 +202,8 @@ export const filtrarPorRangoMontos = <T extends { importe: number }>(
   montoHasta?: number
 ): T[] => {
   if (montoDesde === undefined && montoHasta === undefined) return datos;
-  
-  return datos.filter(item => {
+
+  return datos.filter((item) => {
     const monto = Math.abs(item.importe);
     if (montoDesde !== undefined && monto < montoDesde) return false;
     if (montoHasta !== undefined && monto > montoHasta) return false;

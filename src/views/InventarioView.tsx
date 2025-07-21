@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { InventarioItem, getInventario, formatearMoneda } from '../lib/supabase';
+import {
+  InventarioItem,
+  getInventario,
+  formatearMoneda,
+} from '../lib/supabase';
 
 interface InventarioViewProps {
   currentUser: { id: number; nombre: string; rol: string };
@@ -20,9 +24,7 @@ const InventarioView: React.FC<InventarioViewProps> = ({ currentUser }) => {
   }, []);
 
   if (loading) {
-    return (
-      <div className="p-6">Cargando inventario...</div>
-    );
+    return <div className="p-6">Cargando inventario...</div>;
   }
 
   return (
@@ -32,19 +34,35 @@ const InventarioView: React.FC<InventarioViewProps> = ({ currentUser }) => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoría</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                SKU
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Categoría
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Stock
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Precio
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {items.map(item => (
+            {items.map((item) => (
               <tr key={item.sku}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.sku}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.categoria || '-'}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">{item.stock}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">{formatearMoneda(item.precio)}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {item.sku}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {item.categoria || '-'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  {item.stock}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  {formatearMoneda(item.precio)}
+                </td>
               </tr>
             ))}
           </tbody>

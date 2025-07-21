@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Users, FileText, BarChart3, LogOut, Menu, X, UserCheck, Calculator, DollarSign, CreditCard, Loader2 } from 'lucide-react';
 import { Cliente, Movimiento, getClientes, getMovimientosCompleto, supabase } from './lib/supabase';
+import logger from './utils/logger';
 import Dashboard from './components/Dashboard';
 import ClientesView from './components/ClientesView';
 import { MovimientosView } from './components/MovimientosView';
@@ -61,7 +62,7 @@ function App() {
 
   const loadCheques = async (): Promise<Cheque[]> => {
     try {
-      console.log('📋 Cargando cheques...');
+      logger.log('📋 Cargando cheques...');
       
       let chequesQuery = supabase
         .from('cheques')
@@ -78,15 +79,15 @@ function App() {
       const { data, error } = await chequesQuery;
       
       if (error) {
-        console.error('❌ Error cargando cheques:', error);
+        logger.error('❌ Error cargando cheques:', error);
         throw error;
       }
 
-      console.log(`✅ Cheques cargados: ${data?.length || 0}`);
+      logger.log(`✅ Cheques cargados: ${data?.length || 0}`);
       return data || [];
       
     } catch (error: any) {
-      console.error('❌ Error en loadCheques:', error);
+      logger.error('❌ Error en loadCheques:', error);
       return [];
     }
   };
@@ -96,7 +97,7 @@ function App() {
     
     setState(prev => ({ ...prev, isLoading: true }));
     try {
-      console.log('🔄 Cargando datos para usuario:', state.currentUser.nombre, 'rol:', state.currentUser.rol);
+      logger.log('🔄 Cargando datos para usuario:', state.currentUser.nombre, 'rol:', state.currentUser.rol);
       
       const [clientesData, movimientosData, chequesData] = await Promise.all([
         getClientes(), 
@@ -104,7 +105,7 @@ function App() {
         loadCheques()
       ]);
       
-      console.log('✅ Datos cargados - Clientes:', clientesData.length, 'Movimientos:', movimientosData.length, 'Cheques:', chequesData.length);
+      logger.log('✅ Datos cargados - Clientes:', clientesData.length, 'Movimientos:', movimientosData.length, 'Cheques:', chequesData.length);
       
       setState(prev => ({ 
         ...prev, 
@@ -114,7 +115,7 @@ function App() {
         isLoading: false 
       }));
     } catch (error) {
-      console.error('❌ Error cargando datos:', error);
+      logger.error('❌ Error cargando datos:', error);
       setState(prev => ({ ...prev, isLoading: false }));
       alert('Error al cargar los datos. Revise la consola para más detalles.');
     }
@@ -124,7 +125,7 @@ function App() {
     const handleAuthChange = async (session: any) => {
       if (session && session.user) {
         if (!state.currentUser || state.currentUser.auth_id !== session.user.id) {
-          console.log('🔐 Autenticando usuario:', session.user.id);
+          logger.log('🔐 Autenticando usuario:', session.user.id);
           
           const { data: userData, error } = await supabase
             .from('usuarios')
@@ -133,14 +134,14 @@ function App() {
             .single();
           
           if (userData) {
-            console.log('👤 Usuario encontrado:', userData.nombre, 'rol:', userData.rol);
+            logger.log('👤 Usuario encontrado:', userData.nombre, 'rol:', userData.rol);
             setState(prev => ({ 
               ...prev, 
               currentUser: userData, 
               isAuthLoading: false 
             }));
           } else {
-            console.error('❌ Usuario no encontrado en la base de datos:', error);
+            logger.error('❌ Usuario no encontrado en la base de datos:', error);
             await supabase.auth.signOut();
             setState(prev => ({ ...prev, isAuthLoading: false }));
           }
@@ -148,7 +149,7 @@ function App() {
           setState(prev => ({ ...prev, isAuthLoading: false }));
         }
       } else {
-        console.log('🚪 Sin sesión activa');
+        logger.log('🚪 Sin sesión activa');
         setState(prev => ({ 
           ...prev, 
           currentUser: null, 
@@ -219,7 +220,7 @@ function App() {
     
     if (esAdmin) {
       // ✅ ADMIN VE TODO
-      console.log('👑 Admin - Mostrando todos los datos');
+      logger.log('👑 Admin - Mostrando todos los datos');
       return {
         clientesVisibles: state.clientes,
         movimientosVisibles: state.movimientos,
@@ -231,7 +232,7 @@ function App() {
       const movimientosFiltrados = state.movimientos.filter(m => m.vendedor_id === state.currentUser!.id);
       const chequesFiltrados = state.cheques.filter(ch => ch.vendedor_id === state.currentUser!.id);
       
-      console.log(`👤 Vendedor ${state.currentUser!.nombre} - Clientes: ${clientesFiltrados.length}, Movimientos: ${movimientosFiltrados.length}, Cheques: ${chequesFiltrados.length}`);
+      logger.log(`👤 Vendedor ${state.currentUser!.nombre} - Clientes: ${clientesFiltrados.length}, Movimientos: ${movimientosFiltrados.length}, Cheques: ${chequesFiltrados.length}`);
       
       return {
         clientesVisibles: clientesFiltrados,

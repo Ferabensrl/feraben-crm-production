@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import logger from '../utils/logger'
 
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL!
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY!
@@ -54,7 +55,7 @@ export const calcularSaldoCliente = (movimientos: Movimiento[]): number => {
 // 🔧 CORRECCIÓN CRÍTICA: Función optimizada para cargar clientes
 export const getClientes = async (): Promise<Cliente[]> => {
   try {
-    console.log('📊 Cargando clientes...');
+    logger.log('📊 Cargando clientes...');
     
     // Aumentamos el límite y optimizamos la consulta
     const { data, error } = await supabase
@@ -67,7 +68,7 @@ export const getClientes = async (): Promise<Cliente[]> => {
       .limit(10000); // Aumentado de 2000 a 10000
     
     if (error) {
-      console.error('❌ Error cargando clientes:', error);
+      logger.error('❌ Error cargando clientes:', error);
       throw error;
     }
     
@@ -82,11 +83,11 @@ export const getClientes = async (): Promise<Cliente[]> => {
       vendedor_nombre: c.usuarios?.nombre || 'Sin Vendedor'
     })) as Cliente[];
     
-    console.log(`✅ Clientes cargados: ${clientesConVendedor.length}`);
+    logger.log(`✅ Clientes cargados: ${clientesConVendedor.length}`);
     return clientesConVendedor;
     
   } catch (error) {
-    console.error('❌ Error en getClientes:', error);
+    logger.error('❌ Error en getClientes:', error);
     throw new Error(`Error al cargar clientes: ${error instanceof Error ? error.message : 'Error desconocido'}`);
   }
 }
@@ -94,7 +95,7 @@ export const getClientes = async (): Promise<Cliente[]> => {
 // 🔧 CORRECCIÓN CRÍTICA: Función optimizada para cargar movimientos
 export const getMovimientosCompleto = async (): Promise<Movimiento[]> => {
   try {
-    console.log('📊 Cargando movimientos...');
+    logger.log('📊 Cargando movimientos...');
     
     // 🔧 CORRECCIÓN: Cargar en lotes más grandes y asegurar que se carguen TODOS
     const LIMITE_POR_LOTE = 1000;
@@ -105,7 +106,7 @@ export const getMovimientosCompleto = async (): Promise<Movimiento[]> => {
     const MAX_INTENTOS = 10; // Máximo 10 lotes = 10,000 movimientos
     
     while (hayMasDatos && intentos < MAX_INTENTOS) {
-      console.log(`📦 Cargando lote ${intentos + 1} desde ID ${ultimoId}...`);
+      logger.log(`📦 Cargando lote ${intentos + 1} desde ID ${ultimoId}...`);
       
       const { data, error, count } = await supabase
         .from('movimientos')
@@ -119,12 +120,12 @@ export const getMovimientosCompleto = async (): Promise<Movimiento[]> => {
         .limit(LIMITE_POR_LOTE);
       
       if (error) {
-        console.error('❌ Error cargando movimientos:', error);
+        logger.error('❌ Error cargando movimientos:', error);
         throw error;
       }
       
       if (!data || data.length === 0) {
-        console.log('✅ No hay más datos para cargar');
+        logger.log('✅ No hay más datos para cargar');
         hayMasDatos = false;
         break;
       }
@@ -134,16 +135,16 @@ export const getMovimientosCompleto = async (): Promise<Movimiento[]> => {
       // Actualizar el último ID para la siguiente consulta
       ultimoId = data[data.length - 1].id;
       
-      console.log(`✅ Lote ${intentos + 1} cargado: ${data.length} movimientos (total acumulado: ${todoLosMovimientos.length})`);
+      logger.log(`✅ Lote ${intentos + 1} cargado: ${data.length} movimientos (total acumulado: ${todoLosMovimientos.length})`);
       
       // 🔧 NUEVA VERIFICACIÓN: Si el total en BD es conocido, comparar
       if (count !== null && intentos === 0) {
-        console.log(`📊 Total de movimientos en BD: ${count}`);
+        logger.log(`📊 Total de movimientos en BD: ${count}`);
       }
       
       // Si el lote es menor al límite, ya no hay más datos
       if (data.length < LIMITE_POR_LOTE) {
-        console.log('✅ Último lote detectado (menor al límite)');
+        logger.log('✅ Último lote detectado (menor al límite)');
         hayMasDatos = false;
       }
       
@@ -157,14 +158,14 @@ export const getMovimientosCompleto = async (): Promise<Movimiento[]> => {
     // Ordenar por fecha descendente para mostrar los más recientes primero
     todoLosMovimientos.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
     
-    console.log(`✅ TOTAL de movimientos cargados: ${todoLosMovimientos.length}`);
-    console.log(`📊 Primer movimiento: ${todoLosMovimientos[0]?.fecha} - ${todoLosMovimientos[0]?.documento}`);
-    console.log(`📊 Último movimiento: ${todoLosMovimientos[todoLosMovimientos.length - 1]?.fecha} - ${todoLosMovimientos[todoLosMovimientos.length - 1]?.documento}`);
+    logger.log(`✅ TOTAL de movimientos cargados: ${todoLosMovimientos.length}`);
+    logger.log(`📊 Primer movimiento: ${todoLosMovimientos[0]?.fecha} - ${todoLosMovimientos[0]?.documento}`);
+    logger.log(`📊 Último movimiento: ${todoLosMovimientos[todoLosMovimientos.length - 1]?.fecha} - ${todoLosMovimientos[todoLosMovimientos.length - 1]?.documento}`);
     
     return todoLosMovimientos;
     
   } catch (error) {
-    console.error('❌ Error en getMovimientosCompleto:', error);
+    logger.error('❌ Error en getMovimientosCompleto:', error);
     throw new Error(`Error al cargar movimientos: ${error instanceof Error ? error.message : 'Error desconocido'}`);
   }
 }
@@ -172,7 +173,7 @@ export const getMovimientosCompleto = async (): Promise<Movimiento[]> => {
 // 🔧 NUEVA FUNCIÓN: Cargar movimientos por cliente específico (para optimización)
 export const getMovimientosPorCliente = async (clienteId: number): Promise<Movimiento[]> => {
   try {
-    console.log(`📊 Cargando movimientos para cliente ${clienteId}...`);
+    logger.log(`📊 Cargando movimientos para cliente ${clienteId}...`);
     
     const { data, error } = await supabase
       .from('movimientos')
@@ -186,17 +187,17 @@ export const getMovimientosPorCliente = async (clienteId: number): Promise<Movim
       .limit(10000); // Límite alto para clientes con mucha actividad
     
     if (error) {
-      console.error('❌ Error cargando movimientos por cliente:', error);
+      logger.error('❌ Error cargando movimientos por cliente:', error);
       throw error;
     }
     
     const movimientos = (data || []) as Movimiento[];
-    console.log(`✅ Movimientos del cliente ${clienteId}: ${movimientos.length}`);
+    logger.log(`✅ Movimientos del cliente ${clienteId}: ${movimientos.length}`);
     
     return movimientos;
     
   } catch (error) {
-    console.error('❌ Error en getMovimientosPorCliente:', error);
+    logger.error('❌ Error en getMovimientosPorCliente:', error);
     throw new Error(`Error al cargar movimientos del cliente: ${error instanceof Error ? error.message : 'Error desconocido'}`);
   }
 }
@@ -204,7 +205,7 @@ export const getMovimientosPorCliente = async (clienteId: number): Promise<Movim
 // 🔧 NUEVA FUNCIÓN: Cargar movimientos por vendedor (para optimización)
 export const getMovimientosPorVendedor = async (vendedorId: number, limit?: number): Promise<Movimiento[]> => {
   try {
-    console.log(`📊 Cargando movimientos para vendedor ${vendedorId}...`);
+    logger.log(`📊 Cargando movimientos para vendedor ${vendedorId}...`);
     
     const { data, error } = await supabase
       .from('movimientos')
@@ -218,17 +219,17 @@ export const getMovimientosPorVendedor = async (vendedorId: number, limit?: numb
       .limit(limit || 5000);
     
     if (error) {
-      console.error('❌ Error cargando movimientos por vendedor:', error);
+      logger.error('❌ Error cargando movimientos por vendedor:', error);
       throw error;
     }
     
     const movimientos = (data || []) as Movimiento[];
-    console.log(`✅ Movimientos del vendedor ${vendedorId}: ${movimientos.length}`);
+    logger.log(`✅ Movimientos del vendedor ${vendedorId}: ${movimientos.length}`);
     
     return movimientos;
     
   } catch (error) {
-    console.error('❌ Error en getMovimientosPorVendedor:', error);
+    logger.error('❌ Error en getMovimientosPorVendedor:', error);
     throw new Error(`Error al cargar movimientos del vendedor: ${error instanceof Error ? error.message : 'Error desconocido'}`);
   }
 }
@@ -242,15 +243,15 @@ export const verificarConexion = async (): Promise<boolean> => {
       .limit(1);
     
     if (error) {
-      console.error('❌ Error de conexión:', error);
+      logger.error('❌ Error de conexión:', error);
       return false;
     }
     
-    console.log('✅ Conexión a Supabase verificada');
+    logger.log('✅ Conexión a Supabase verificada');
     return true;
     
   } catch (error) {
-    console.error('❌ Error verificando conexión:', error);
+    logger.error('❌ Error verificando conexión:', error);
     return false;
   }
 }
@@ -270,11 +271,11 @@ export const obtenerEstadisticas = async () => {
       usuarios: usuariosCount.count || 0
     };
     
-    console.log('📊 Estadísticas de la BD:', stats);
+    logger.log('📊 Estadísticas de la BD:', stats);
     return stats;
     
   } catch (error) {
-    console.error('❌ Error obteniendo estadísticas:', error);
+    logger.error('❌ Error obteniendo estadísticas:', error);
     return null;
   }
 }

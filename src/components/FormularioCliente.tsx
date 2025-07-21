@@ -20,7 +20,7 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
   onClose,
   onSuccess,
   currentUser,
-  clienteEditar
+  clienteEditar,
 }) => {
   const [formData, setFormData] = useState({
     rut: '',
@@ -30,7 +30,7 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
     direccion: '',
     ciudad: 'Montevideo',
     departamento: 'Montevideo',
-    vendedor_id: currentUser.id
+    vendedor_id: currentUser.id,
   });
 
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
@@ -51,7 +51,7 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
           direccion: clienteEditar.direccion || '',
           ciudad: clienteEditar.ciudad || 'Montevideo',
           departamento: clienteEditar.departamento || 'Montevideo',
-          vendedor_id: clienteEditar.vendedor_id
+          vendedor_id: clienteEditar.vendedor_id,
         });
       } else {
         resetForm();
@@ -68,7 +68,7 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
         .order('nombre');
 
       if (error) throw error;
-      
+
       console.log('Vendedores cargados:', data);
       setVendedores(data || []);
     } catch (error) {
@@ -85,7 +85,7 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
       direccion: '',
       ciudad: 'Montevideo',
       departamento: 'Montevideo',
-      vendedor_id: currentUser.id
+      vendedor_id: currentUser.id,
     });
     setErrors({});
   };
@@ -102,7 +102,8 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
     if (!formData.razon_social.trim()) {
       newErrors.razon_social = 'La razón social es obligatoria';
     } else if (formData.razon_social.trim().length < 3) {
-      newErrors.razon_social = 'La razón social debe tener al menos 3 caracteres';
+      newErrors.razon_social =
+        'La razón social debe tener al menos 3 caracteres';
     }
 
     if (!formData.ciudad.trim()) {
@@ -123,14 +124,16 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     try {
       setLoading(true);
       const esEdicion = !!clienteEditar;
-      console.log(`🚀 === INICIO ${esEdicion ? 'EDICIÓN' : 'CREACIÓN'} CLIENTE ===`);
-      
+      console.log(
+        `🚀 === INICIO ${esEdicion ? 'EDICIÓN' : 'CREACIÓN'} CLIENTE ===`
+      );
+
       if (!esEdicion) {
         // MODO CREACIÓN - Verificar RUT duplicado
         const { data: clientesExistentes, error: checkError } = await supabase
@@ -146,7 +149,9 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
         if (clientesExistentes && clientesExistentes.length > 0) {
           const clienteExistente = clientesExistentes[0];
           console.log('⚠️ RUT ya existe:', clienteExistente);
-          alert(`❌ RUT DUPLICADO\n\nYa existe un cliente con el RUT ${formData.rut.trim()}:\n"${clienteExistente.razon_social}" (ID: ${clienteExistente.id})\n\n✅ Solución: Use un RUT diferente.`);
+          alert(
+            `❌ RUT DUPLICADO\n\nYa existe un cliente con el RUT ${formData.rut.trim()}:\n"${clienteExistente.razon_social}" (ID: ${clienteExistente.id})\n\n✅ Solución: Use un RUT diferente.`
+          );
           setLoading(false);
           return;
         }
@@ -166,7 +171,9 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
         if (clientesExistentes && clientesExistentes.length > 0) {
           const clienteExistente = clientesExistentes[0];
           console.log('⚠️ RUT ya existe en otro cliente:', clienteExistente);
-          alert(`❌ RUT DUPLICADO\n\nYa existe otro cliente con el RUT ${formData.rut.trim()}:\n"${clienteExistente.razon_social}" (ID: ${clienteExistente.id})\n\n✅ Solución: Use un RUT diferente.`);
+          alert(
+            `❌ RUT DUPLICADO\n\nYa existe otro cliente con el RUT ${formData.rut.trim()}:\n"${clienteExistente.razon_social}" (ID: ${clienteExistente.id})\n\n✅ Solución: Use un RUT diferente.`
+          );
           setLoading(false);
           return;
         }
@@ -184,7 +191,7 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
         ciudad: formData.ciudad.trim(),
         departamento: formData.departamento.trim(),
         vendedor_id: formData.vendedor_id,
-        activo: true
+        activo: true,
       };
 
       console.log('📤 Datos a procesar:', clienteData);
@@ -204,7 +211,9 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
         }
 
         console.log('✅ Cliente actualizado:', data);
-        alert(`✅ CLIENTE ACTUALIZADO\n\n• Nombre: ${formData.razon_social}\n• RUT: ${formData.rut}\n• ID: ${clienteEditar.id}\n\nLos cambios se guardaron correctamente.`);
+        alert(
+          `✅ CLIENTE ACTUALIZADO\n\n• Nombre: ${formData.razon_social}\n• RUT: ${formData.rut}\n• ID: ${clienteEditar.id}\n\nLos cambios se guardaron correctamente.`
+        );
       } else {
         // CREAR nuevo cliente
         console.log('💾 Creando nuevo cliente...');
@@ -220,22 +229,28 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
 
         const clienteCreado = data[0];
         console.log('✅ Cliente creado:', clienteCreado);
-        alert(`🎉 CLIENTE CREADO\n\n• Nombre: ${formData.razon_social}\n• RUT: ${formData.rut}\n• ID asignado: ${clienteCreado.id}\n• Vendedor: ${vendedores.find(v => v.id === formData.vendedor_id)?.nombre}`);
+        alert(
+          `🎉 CLIENTE CREADO\n\n• Nombre: ${formData.razon_social}\n• RUT: ${formData.rut}\n• ID asignado: ${clienteCreado.id}\n• Vendedor: ${vendedores.find((v) => v.id === formData.vendedor_id)?.nombre}`
+        );
       }
-      
+
       // Limpiar formulario y recargar lista
       resetForm();
       onSuccess();
       onClose();
-      console.log(`🏁 === FIN ${esEdicion ? 'EDICIÓN' : 'CREACIÓN'} - ÉXITO ===`);
-
+      console.log(
+        `🏁 === FIN ${esEdicion ? 'EDICIÓN' : 'CREACIÓN'} - ÉXITO ===`
+      );
     } catch (error: any) {
       console.error('💥 === ERROR CRÍTICO ===');
       console.error('❌ Error:', error);
-      
+
       let errorMessage = `Error al ${clienteEditar ? 'actualizar' : 'crear'} el cliente`;
-      
-      if (error.message?.includes('RUT duplicado') || error.message?.includes('duplicate')) {
+
+      if (
+        error.message?.includes('RUT duplicado') ||
+        error.message?.includes('duplicate')
+      ) {
         errorMessage = `❌ RUT DUPLICADO\n\n${error.message}\n\n💡 Solución: Use un RUT diferente`;
       } else if (error.message?.includes('ID duplicado')) {
         errorMessage = `❌ PROBLEMA DE ID\n\n${error.message}\n\n💡 Solución: Contacte soporte técnico`;
@@ -244,8 +259,10 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
       } else if (error.message) {
         errorMessage = `❌ ERROR\n\n${error.message}`;
       }
-      
-      alert(`${errorMessage}\n\n🔍 Revise la consola del navegador (F12) para más detalles técnicos.`);
+
+      alert(
+        `${errorMessage}\n\n🔍 Revise la consola del navegador (F12) para más detalles técnicos.`
+      );
       console.error('💥 === FIN ERROR CRÍTICO ===');
     } finally {
       setLoading(false);
@@ -253,16 +270,18 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
   };
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors((prev) => ({ ...prev, [field]: '' }));
     }
   };
 
   if (!isOpen) return null;
 
-  const vendedorSeleccionado = vendedores.find(v => v.id === formData.vendedor_id);
+  const vendedorSeleccionado = vendedores.find(
+    (v) => v.id === formData.vendedor_id
+  );
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -317,7 +336,9 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
               <input
                 type="text"
                 value={formData.razon_social}
-                onChange={(e) => handleInputChange('razon_social', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange('razon_social', e.target.value)
+                }
                 placeholder="Empresa SA"
                 className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
                   errors.razon_social ? 'border-red-500' : 'border-gray-300'
@@ -342,7 +363,9 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
               <input
                 type="text"
                 value={formData.nombre_fantasia}
-                onChange={(e) => handleInputChange('nombre_fantasia', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange('nombre_fantasia', e.target.value)
+                }
                 placeholder="Nombre comercial"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 disabled={loading}
@@ -409,7 +432,9 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
               </label>
               <select
                 value={formData.departamento}
-                onChange={(e) => handleInputChange('departamento', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange('departamento', e.target.value)
+                }
                 className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
                   errors.departamento ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -451,14 +476,16 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
             </label>
             <select
               value={formData.vendedor_id}
-              onChange={(e) => handleInputChange('vendedor_id', parseInt(e.target.value))}
+              onChange={(e) =>
+                handleInputChange('vendedor_id', parseInt(e.target.value))
+              }
               className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
                 errors.vendedor_id ? 'border-red-500' : 'border-gray-300'
               }`}
               disabled={loading || currentUser.rol !== 'admin'}
             >
               <option value={0}>Seleccionar vendedor...</option>
-              {vendedores.map(vendedor => (
+              {vendedores.map((vendedor) => (
                 <option key={vendedor.id} value={vendedor.id}>
                   {vendedor.nombre}
                   {vendedor.id === currentUser.id ? ' (Yo)' : ''}
@@ -479,7 +506,8 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({
               <div className="flex items-center">
                 <User size={16} className="text-primary-dark mr-2" />
                 <span className="text-sm text-primary-dark">
-                  <strong>Vendedor seleccionado:</strong> {vendedorSeleccionado.nombre}
+                  <strong>Vendedor seleccionado:</strong>{' '}
+                  {vendedorSeleccionado.nombre}
                   {vendedorSeleccionado.id === currentUser.id ? ' (Tú)' : ''}
                 </span>
               </div>

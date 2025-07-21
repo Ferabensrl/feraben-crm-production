@@ -6,7 +6,7 @@ import {
   getMovimientosCompleto,
   InventarioItem,
   getInventario,
-  supabase
+  supabase,
 } from '../lib/supabase';
 import logger from '../utils/logger';
 import { CurrentUser } from './session';
@@ -29,10 +29,12 @@ const loadCheques = async (user: CurrentUser): Promise<Cheque[]> => {
   try {
     let query = supabase
       .from('cheques')
-      .select(`
+      .select(
+        `
         *,
         clientes (razon_social)
-      `)
+      `
+      )
       .order('fecha_vencimiento', { ascending: false });
 
     if (user.rol.toLowerCase() !== 'admin') {
@@ -74,12 +76,13 @@ export const useDataStore = create<DataState>((set) => ({
   loadAll: async (user: CurrentUser) => {
     set({ isLoading: true });
     try {
-      const [clientesData, movimientosData, chequesData, inventarioData] = await Promise.all([
-        getClientes(),
-        getMovimientosCompleto(),
-        loadCheques(user),
-        getInventario(),
-      ]);
+      const [clientesData, movimientosData, chequesData, inventarioData] =
+        await Promise.all([
+          getClientes(),
+          getMovimientosCompleto(),
+          loadCheques(user),
+          getInventario(),
+        ]);
       set({
         clientes: clientesData,
         movimientos: movimientosData,

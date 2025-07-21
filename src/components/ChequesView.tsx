@@ -1,48 +1,57 @@
-import React, { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, Calendar, DollarSign, User, FileText, Download } from 'lucide-react'
-import { supabase, formatearMoneda, formatearFecha } from '../lib/supabase'
-import { CurrentUser } from '../store/session'
+import React, { useState, useEffect } from 'react';
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Calendar,
+  DollarSign,
+  User,
+  FileText,
+  Download,
+} from 'lucide-react';
+import { supabase, formatearMoneda, formatearFecha } from '../lib/supabase';
+import { CurrentUser } from '../store/session';
 
 interface Cheque {
-  id: number
-  numero_cheque: string
-  banco: string
-  cliente_id: number
-  vendedor_id: number
-  fecha_emision: string
-  fecha_vencimiento: string
-  importe: number
-  estado: 'Pendiente' | 'Cobrado' | 'Rechazado' | 'Anulado'
-  comentario?: string
-  created_at: string
-  clientes?: { razon_social: string }
-  usuarios?: { nombre: string }
+  id: number;
+  numero_cheque: string;
+  banco: string;
+  cliente_id: number;
+  vendedor_id: number;
+  fecha_emision: string;
+  fecha_vencimiento: string;
+  importe: number;
+  estado: 'Pendiente' | 'Cobrado' | 'Rechazado' | 'Anulado';
+  comentario?: string;
+  created_at: string;
+  clientes?: { razon_social: string };
+  usuarios?: { nombre: string };
 }
 
 interface FormularioCheque {
-  numero_cheque: string
-  banco: string
-  cliente_id: number
-  fecha_emision: string
-  fecha_vencimiento: string
-  importe: number
-  estado: 'Pendiente' | 'Cobrado' | 'Rechazado' | 'Anulado'
-  comentario: string
+  numero_cheque: string;
+  banco: string;
+  cliente_id: number;
+  fecha_emision: string;
+  fecha_vencimiento: string;
+  importe: number;
+  estado: 'Pendiente' | 'Cobrado' | 'Rechazado' | 'Anulado';
+  comentario: string;
 }
 
 interface ChequesViewProps {
-  currentUser: CurrentUser
+  currentUser: CurrentUser;
 }
 
 export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
-  const [cheques, setCheques] = useState<Cheque[]>([])
-  const [clientes, setClientes] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showFormulario, setShowFormulario] = useState(false)
-  const [chequeEditando, setChequeEditando] = useState<Cheque | null>(null)
-  const [eliminando, setEliminando] = useState<number | null>(null)
-  const [filtroEstado, setFiltroEstado] = useState<string>('')
-  
+  const [cheques, setCheques] = useState<Cheque[]>([]);
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showFormulario, setShowFormulario] = useState(false);
+  const [chequeEditando, setChequeEditando] = useState<Cheque | null>(null);
+  const [eliminando, setEliminando] = useState<number | null>(null);
+  const [filtroEstado, setFiltroEstado] = useState<string>('');
+
   const [formData, setFormData] = useState<FormularioCheque>({
     numero_cheque: '',
     banco: '',
@@ -51,36 +60,38 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
     fecha_vencimiento: '',
     importe: 0,
     estado: 'Pendiente',
-    comentario: ''
-  })
+    comentario: '',
+  });
 
   useEffect(() => {
-    loadData()
-  }, [currentUser])
+    loadData();
+  }, [currentUser]);
 
   const loadData = async () => {
     try {
-      setLoading(true)
-      
+      setLoading(true);
+
       // Cargar cheques - 🔧 CORRECCIÓN: Sin join a usuarios
       let chequesQuery = supabase
         .from('cheques')
-        .select(`
+        .select(
+          `
           *,
           clientes (razon_social)
-        `)
-        .order('fecha_vencimiento', { ascending: false })
+        `
+        )
+        .order('fecha_vencimiento', { ascending: false });
 
       // Filtrar por vendedor si no es admin
       if (currentUser.rol.toLowerCase() !== 'admin') {
-        chequesQuery = chequesQuery.eq('vendedor_id', currentUser.id)
+        chequesQuery = chequesQuery.eq('vendedor_id', currentUser.id);
       }
 
-      const { data: chequesData, error: chequesError } = await chequesQuery
-      
+      const { data: chequesData, error: chequesError } = await chequesQuery;
+
       if (chequesError) {
-        console.error('Error cargando cheques:', chequesError)
-        throw chequesError
+        console.error('Error cargando cheques:', chequesError);
+        throw chequesError;
       }
 
       // Cargar clientes para el formulario
@@ -88,43 +99,44 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
         .from('clientes')
         .select('id, razon_social, vendedor_id, activo')
         .eq('activo', true)
-        .order('razon_social')
+        .order('razon_social');
 
       if (currentUser.rol.toLowerCase() !== 'admin') {
-        clientesQuery = clientesQuery.eq('vendedor_id', currentUser.id)
+        clientesQuery = clientesQuery.eq('vendedor_id', currentUser.id);
       }
 
-      const { data: clientesData, error: clientesError } = await clientesQuery
-      
+      const { data: clientesData, error: clientesError } = await clientesQuery;
+
       if (clientesError) {
-        console.error('Error cargando clientes:', clientesError)
-        throw clientesError
+        console.error('Error cargando clientes:', clientesError);
+        throw clientesError;
       }
 
-      setCheques(chequesData || [])
-      setClientes(clientesData || [])
-      
+      setCheques(chequesData || []);
+      setClientes(clientesData || []);
     } catch (error: any) {
-      console.error('Error cargando datos:', error)
-      alert(`Error cargando datos: ${error.message}`)
+      console.error('Error cargando datos:', error);
+      alert(`Error cargando datos: ${error.message}`);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const chequesFiltrados = cheques.filter(cheque => {
-    if (!filtroEstado) return true
-    return cheque.estado === filtroEstado
-  })
+  const chequesFiltrados = cheques.filter((cheque) => {
+    if (!filtroEstado) return true;
+    return cheque.estado === filtroEstado;
+  });
 
   const estadisticas = {
     total: cheques.length,
-    pendientes: cheques.filter(c => c.estado === 'Pendiente').length,
-    cobrados: cheques.filter(c => c.estado === 'Cobrado').length,
-    rechazados: cheques.filter(c => c.estado === 'Rechazado').length,
+    pendientes: cheques.filter((c) => c.estado === 'Pendiente').length,
+    cobrados: cheques.filter((c) => c.estado === 'Cobrado').length,
+    rechazados: cheques.filter((c) => c.estado === 'Rechazado').length,
     importeTotal: cheques.reduce((sum, c) => sum + c.importe, 0),
-    importePendiente: cheques.filter(c => c.estado === 'Pendiente').reduce((sum, c) => sum + c.importe, 0)
-  }
+    importePendiente: cheques
+      .filter((c) => c.estado === 'Pendiente')
+      .reduce((sum, c) => sum + c.importe, 0),
+  };
 
   const resetForm = () => {
     setFormData({
@@ -135,64 +147,68 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
       fecha_vencimiento: '',
       importe: 0,
       estado: 'Pendiente',
-      comentario: ''
-    })
-    setChequeEditando(null)
-  }
+      comentario: '',
+    });
+    setChequeEditando(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!formData.numero_cheque || !formData.banco || !formData.cliente_id || !formData.fecha_emision || !formData.fecha_vencimiento || !formData.importe) {
-      alert('Por favor complete todos los campos obligatorios')
-      return
+    e.preventDefault();
+
+    if (
+      !formData.numero_cheque ||
+      !formData.banco ||
+      !formData.cliente_id ||
+      !formData.fecha_emision ||
+      !formData.fecha_vencimiento ||
+      !formData.importe
+    ) {
+      alert('Por favor complete todos los campos obligatorios');
+      return;
     }
 
     try {
-      const cliente = clientes.find(c => c.id === formData.cliente_id)
+      const cliente = clientes.find((c) => c.id === formData.cliente_id);
       if (!cliente) {
-        alert('Cliente no encontrado')
-        return
+        alert('Cliente no encontrado');
+        return;
       }
 
       const chequeData = {
         ...formData,
-        vendedor_id: cliente.vendedor_id || currentUser.id
-      }
+        vendedor_id: cliente.vendedor_id || currentUser.id,
+      };
 
       if (chequeEditando) {
         const { error } = await supabase
           .from('cheques')
           .update(chequeData)
-          .eq('id', chequeEditando.id)
-        
-        if (error) throw error
-        alert('✅ Cheque actualizado correctamente')
+          .eq('id', chequeEditando.id);
+
+        if (error) throw error;
+        alert('✅ Cheque actualizado correctamente');
       } else {
-        const { error } = await supabase
-          .from('cheques')
-          .insert([chequeData])
-        
-        if (error) throw error
-        alert('✅ Cheque creado correctamente')
+        const { error } = await supabase.from('cheques').insert([chequeData]);
+
+        if (error) throw error;
+        alert('✅ Cheque creado correctamente');
       }
 
-      setShowFormulario(false)
-      resetForm()
-      loadData()
-      
+      setShowFormulario(false);
+      resetForm();
+      loadData();
     } catch (error: any) {
-      console.error('Error guardando cheque:', error)
-      alert(`Error: ${error.message}`)
+      console.error('Error guardando cheque:', error);
+      alert(`Error: ${error.message}`);
     }
-  }
+  };
 
   const handleEditar = (cheque: Cheque) => {
     if (currentUser.rol.toLowerCase() !== 'admin') {
-      alert('❌ Solo los administradores pueden editar cheques')
-      return
+      alert('❌ Solo los administradores pueden editar cheques');
+      return;
     }
-    
+
     setFormData({
       numero_cheque: cheque.numero_cheque,
       banco: cheque.banco,
@@ -201,46 +217,56 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
       fecha_vencimiento: cheque.fecha_vencimiento,
       importe: cheque.importe,
       estado: cheque.estado,
-      comentario: cheque.comentario || ''
-    })
-    setChequeEditando(cheque)
-    setShowFormulario(true)
-  }
+      comentario: cheque.comentario || '',
+    });
+    setChequeEditando(cheque);
+    setShowFormulario(true);
+  };
 
   const handleEliminar = async (cheque: Cheque) => {
     if (currentUser.rol.toLowerCase() !== 'admin') {
-      alert('❌ Solo los administradores pueden eliminar cheques')
-      return
+      alert('❌ Solo los administradores pueden eliminar cheques');
+      return;
     }
 
-    if (!window.confirm(`¿Eliminar cheque ${cheque.numero_cheque} por ${formatearMoneda(cheque.importe)}?`)) return
+    if (
+      !window.confirm(
+        `¿Eliminar cheque ${cheque.numero_cheque} por ${formatearMoneda(cheque.importe)}?`
+      )
+    )
+      return;
 
     try {
-      setEliminando(cheque.id)
+      setEliminando(cheque.id);
       const { error } = await supabase
         .from('cheques')
         .delete()
-        .eq('id', cheque.id)
-      
-      if (error) throw error
-      alert('✅ Cheque eliminado')
-      loadData()
+        .eq('id', cheque.id);
+
+      if (error) throw error;
+      alert('✅ Cheque eliminado');
+      loadData();
     } catch (error: any) {
-      alert(`Error eliminando cheque: ${error.message}`)
+      alert(`Error eliminando cheque: ${error.message}`);
     } finally {
-      setEliminando(null)
+      setEliminando(null);
     }
-  }
+  };
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
-      case 'Pendiente': return 'bg-yellow-100 text-yellow-800'
-      case 'Cobrado': return 'bg-green-100 text-green-800'
-      case 'Rechazado': return 'bg-red-100 text-red-800'
-      case 'Anulado': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'Pendiente':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'Cobrado':
+        return 'bg-green-100 text-green-800';
+      case 'Rechazado':
+        return 'bg-red-100 text-red-800';
+      case 'Anulado':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -250,7 +276,7 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
           <p className="text-gray-600">Cargando cheques...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -262,15 +288,15 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
             {currentUser.rol === 'admin' ? 'Gestión de Cheques' : 'Mis Cheques'}
           </h2>
           <p className="text-gray-600 mt-1">
-            {currentUser.rol === 'admin' 
+            {currentUser.rol === 'admin'
               ? `${cheques.length} cheques registrados en el sistema`
               : `Tienes ${cheques.length} cheques bajo tu gestión`}
           </p>
         </div>
         <button
           onClick={() => {
-            resetForm()
-            setShowFormulario(true)
+            resetForm();
+            setShowFormulario(true);
           }}
           className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark flex items-center font-medium"
         >
@@ -285,37 +311,47 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Cheques</p>
-              <p className="text-2xl font-bold text-gray-900">{estadisticas.total}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {estadisticas.total}
+              </p>
             </div>
             <FileText className="text-primary" size={24} />
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Pendientes</p>
-              <p className="text-2xl font-bold text-yellow-600">{estadisticas.pendientes}</p>
+              <p className="text-2xl font-bold text-yellow-600">
+                {estadisticas.pendientes}
+              </p>
             </div>
             <Calendar className="text-yellow-600" size={24} />
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Importe Total</p>
-              <p className="text-2xl font-bold text-gray-900">{formatearMoneda(estadisticas.importeTotal)}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {formatearMoneda(estadisticas.importeTotal)}
+              </p>
             </div>
             <DollarSign className="text-green-600" size={24} />
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Pendiente Cobrar</p>
-              <p className="text-2xl font-bold text-red-600">{formatearMoneda(estadisticas.importePendiente)}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Pendiente Cobrar
+              </p>
+              <p className="text-2xl font-bold text-red-600">
+                {formatearMoneda(estadisticas.importePendiente)}
+              </p>
             </div>
             <DollarSign className="text-red-600" size={24} />
           </div>
@@ -325,7 +361,9 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
       {/* Filtros */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex items-center space-x-4">
-          <label className="text-sm font-medium text-gray-700">Filtrar por estado:</label>
+          <label className="text-sm font-medium text-gray-700">
+            Filtrar por estado:
+          </label>
           <select
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
@@ -344,16 +382,18 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
       {chequesFiltrados.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <FileText size={48} className="mx-auto text-gray-400 mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No hay cheques</h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            No hay cheques
+          </h3>
           <p className="text-gray-600 mb-6">
-            {filtroEstado 
+            {filtroEstado
               ? `No se encontraron cheques con estado "${filtroEstado}"`
               : 'Comienza agregando tu primer cheque al sistema.'}
           </p>
           <button
             onClick={() => {
-              resetForm()
-              setShowFormulario(true)
+              resetForm();
+              setShowFormulario(true);
             }}
             className="bg-primary text-white px-6 py-3 rounded-md hover:bg-primary-dark font-medium"
           >
@@ -402,7 +442,8 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {cheque.clientes?.razon_social || 'Cliente no encontrado'}
+                        {cheque.clientes?.razon_social ||
+                          'Cliente no encontrado'}
                       </div>
                       <div className="text-sm text-gray-500">
                         Vendedor: {cheque.usuarios?.nombre || 'N/A'}
@@ -410,13 +451,17 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div>Emisión: {formatearFecha(cheque.fecha_emision)}</div>
-                      <div>Vencimiento: {formatearFecha(cheque.fecha_vencimiento)}</div>
+                      <div>
+                        Vencimiento: {formatearFecha(cheque.fecha_vencimiento)}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
                       {formatearMoneda(cheque.importe)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(cheque.estado)}`}>
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(cheque.estado)}`}
+                      >
                         {cheque.estado}
                       </span>
                     </td>
@@ -461,14 +506,14 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
               <h3 className="text-xl font-semibold text-gray-900">
                 {chequeEditando ? 'Editar' : 'Nuevo'} Cheque
               </h3>
-              <button 
+              <button
                 onClick={() => setShowFormulario(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
                 ×
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -478,12 +523,17 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
                   <input
                     type="text"
                     value={formData.numero_cheque}
-                    onChange={(e) => setFormData(prev => ({ ...prev, numero_cheque: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        numero_cheque: e.target.value,
+                      }))
+                    }
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Banco *
@@ -491,31 +541,41 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
                   <input
                     type="text"
                     value={formData.banco}
-                    onChange={(e) => setFormData(prev => ({ ...prev, banco: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        banco: e.target.value,
+                      }))
+                    }
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Cliente *
                   </label>
                   <select
                     value={formData.cliente_id}
-                    onChange={(e) => setFormData(prev => ({ ...prev, cliente_id: parseInt(e.target.value) }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        cliente_id: parseInt(e.target.value),
+                      }))
+                    }
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                     required
                   >
                     <option value={0}>Seleccionar cliente...</option>
-                    {clientes.map(cliente => (
+                    {clientes.map((cliente) => (
                       <option key={cliente.id} value={cliente.id}>
                         {cliente.razon_social}
                       </option>
                     ))}
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Importe *
@@ -524,12 +584,17 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
                     type="number"
                     step="0.01"
                     value={formData.importe}
-                    onChange={(e) => setFormData(prev => ({ ...prev, importe: parseFloat(e.target.value) || 0 }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        importe: parseFloat(e.target.value) || 0,
+                      }))
+                    }
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Fecha de Emisión *
@@ -537,12 +602,17 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
                   <input
                     type="date"
                     value={formData.fecha_emision}
-                    onChange={(e) => setFormData(prev => ({ ...prev, fecha_emision: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        fecha_emision: e.target.value,
+                      }))
+                    }
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Fecha de Vencimiento *
@@ -550,19 +620,29 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
                   <input
                     type="date"
                     value={formData.fecha_vencimiento}
-                    onChange={(e) => setFormData(prev => ({ ...prev, fecha_vencimiento: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        fecha_vencimiento: e.target.value,
+                      }))
+                    }
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Estado
                   </label>
                   <select
                     value={formData.estado}
-                    onChange={(e) => setFormData(prev => ({ ...prev, estado: e.target.value as any }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        estado: e.target.value as any,
+                      }))
+                    }
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                   >
                     <option value="Pendiente">Pendiente</option>
@@ -572,20 +652,25 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Comentarios
                 </label>
                 <textarea
                   value={formData.comentario}
-                  onChange={(e) => setFormData(prev => ({ ...prev, comentario: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      comentario: e.target.value,
+                    }))
+                  }
                   className="w-full border border-gray-300 rounded-md px-3 py-2"
                   rows={3}
                   placeholder="Comentarios adicionales sobre el cheque..."
                 />
               </div>
-              
+
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -606,5 +691,5 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};

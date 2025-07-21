@@ -321,42 +321,44 @@ const DashboardVendedor: React.FC<DashboardProps> = ({ clientes, movimientos, cu
         </div>
 
         {/* Control de mis cheques */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <CreditCard className="mr-2 text-orange-500" size={20} />
-            Mis Cheques
-          </h3>
-          <div className="space-y-4">
-            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium text-orange-800">Total de Cheques</div>
-                  <div className="text-2xl font-bold text-orange-600">{controlCheques.total}</div>
-                </div>
-                <CreditCard className="text-orange-500" size={32} />
-              </div>
-            </div>
-            
-            {controlCheques.pendientes > 0 && (
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        {currentUser.rol === 'admin' && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <CreditCard className="mr-2 text-orange-500" size={20} />
+              Mis Cheques
+            </h3>
+            <div className="space-y-4">
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-medium text-yellow-800">Pendientes</div>
-                    <div className="text-xl font-bold text-yellow-600">{controlCheques.pendientes}</div>
+                    <div className="text-sm font-medium text-orange-800">Total de Cheques</div>
+                    <div className="text-2xl font-bold text-orange-600">{controlCheques.total}</div>
                   </div>
-                  <Clock className="text-yellow-500" size={24} />
-                </div>
-                <div className="mt-2 text-sm text-yellow-700">
-                  Valor: {formatearMoneda(controlCheques.importeTotal)}
+                  <CreditCard className="text-orange-500" size={32} />
                 </div>
               </div>
-            )}
-            
-            <div className="text-center text-sm text-gray-500">
-              {controlCheques.mensaje}
+
+              {controlCheques.pendientes > 0 && (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-yellow-800">Pendientes</div>
+                      <div className="text-xl font-bold text-yellow-600">{controlCheques.pendientes}</div>
+                    </div>
+                    <Clock className="text-yellow-500" size={24} />
+                  </div>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    Valor: {formatearMoneda(controlCheques.importeTotal)}
+                  </div>
+                </div>
+              )}
+
+              <div className="text-center text-sm text-gray-500">
+                {controlCheques.mensaje}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* 💡 MENSAJE MOTIVACIONAL PARA VENDEDOR */}

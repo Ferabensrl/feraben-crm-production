@@ -12,7 +12,9 @@ import {
   CreditCard,
   Target,
   User,
-  MapPin
+  MapPin,
+  Calendar,
+  BarChart3
 } from 'lucide-react';
 import { formatearMoneda } from '../lib/supabase';
 import { Cliente, Movimiento } from '../lib/supabase';
@@ -81,31 +83,45 @@ const DashboardVendedor: React.FC<DashboardProps> = ({ clientes, movimientos, cu
     const añoActual = fechaActual.getFullYear();
     const añoAnterior = añoActual - 1;
 
-    // Ventas del mes actual
-    const ventasMesActual = movimientos
+    // Ventas NETAS del mes actual (Ventas - Devoluciones)
+    let ventasMesActual = 0;
+    movimientos
       .filter(m => {
         const fecha = new Date(m.fecha + 'T00:00:00');
-        return m.tipo_movimiento === 'Venta' && 
+        return (m.tipo_movimiento === 'Venta' || m.tipo_movimiento === 'Devolución') && 
                fecha.getMonth() + 1 === mesActual && 
                fecha.getFullYear() === añoActual;
       })
-      .reduce((sum, m) => sum + m.importe, 0);
+      .forEach(m => {
+        if (m.tipo_movimiento === 'Venta') {
+          ventasMesActual += m.importe;
+        } else if (m.tipo_movimiento === 'Devolución') {
+          ventasMesActual -= Math.abs(m.importe); // Devoluciones reducen las ventas
+        }
+      });
 
-    // Ventas del mismo mes año anterior
-    const ventasMesAnterior = movimientos
+    // Ventas NETAS del mismo mes año anterior (Ventas - Devoluciones)
+    let ventasMesAnterior = 0;
+    movimientos
       .filter(m => {
         const fecha = new Date(m.fecha + 'T00:00:00');
-        return m.tipo_movimiento === 'Venta' && 
+        return (m.tipo_movimiento === 'Venta' || m.tipo_movimiento === 'Devolución') && 
                fecha.getMonth() + 1 === mesActual && 
                fecha.getFullYear() === añoAnterior;
       })
-      .reduce((sum, m) => sum + m.importe, 0);
+      .forEach(m => {
+        if (m.tipo_movimiento === 'Venta') {
+          ventasMesAnterior += m.importe;
+        } else if (m.tipo_movimiento === 'Devolución') {
+          ventasMesAnterior -= Math.abs(m.importe); // Devoluciones reducen las ventas
+        }
+      });
 
-    // Cobros del mes actual
+    // Cobros del mes actual (solo Pagos y Notas de Crédito)
     const cobrosMesActual = movimientos
       .filter(m => {
         const fecha = new Date(m.fecha + 'T00:00:00');
-        return ['Pago', 'Nota de Crédito', 'Devolución'].includes(m.tipo_movimiento) && 
+        return ['Pago', 'Nota de Crédito'].includes(m.tipo_movimiento) && 
                fecha.getMonth() + 1 === mesActual && 
                fecha.getFullYear() === añoActual;
       })
@@ -381,6 +397,21 @@ const DashboardVendedor: React.FC<DashboardProps> = ({ clientes, movimientos, cu
         </div>
       </div>
 
+      {/* 📈 ANÁLISIS VENTAS ÚLTIMOS 4 MESES */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+          <TrendingUp className="mr-3 text-primary" size={24} />
+          Mis Ventas NETAS - Últimos 4 Meses (Análisis Cuatrimestral)
+        </h3>
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            💡 <strong>Ventas Netas:</strong> Se incluyen las ventas y se descuentan las devoluciones para mostrar el ingreso real de cada mes.
+          </p>
+        </div>
+        
+        <VentasUltimos4Meses movimientos={movimientos} esVendedor={true} />
+      </div>
+
       {/* 📊 FOOTER INFORMATIVO PARA VENDEDOR */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex items-center justify-between text-sm text-gray-600">
@@ -437,8 +468,11 @@ const DashboardAdmin: React.FC<DashboardProps> = ({ clientes, movimientos, curre
       if (enRango) {
         if (m.tipo_movimiento === 'Venta') {
           ventasMesActual += m.importe;
+        } else if (m.tipo_movimiento === 'Devolución') {
+          // Las devoluciones reducen las ventas NETAS
+          ventasMesActual -= Math.abs(m.importe);
         }
-        if (['Pago', 'Nota de Crédito', 'Devolución'].includes(m.tipo_movimiento)) {
+        if (['Pago', 'Nota de Crédito'].includes(m.tipo_movimiento)) {
           pagosMesActual += Math.abs(m.importe);
         }
       }
@@ -472,7 +506,10 @@ const DashboardAdmin: React.FC<DashboardProps> = ({ clientes, movimientos, curre
       if (m.vendedor_id && vendedoresMap[m.vendedor_id]) {
         if (m.tipo_movimiento === 'Venta') {
           vendedoresMap[m.vendedor_id].ventas += m.importe;
-        } else if (['Pago', 'Nota de Crédito', 'Devolución'].includes(m.tipo_movimiento)) {
+        } else if (m.tipo_movimiento === 'Devolución') {
+          // Las devoluciones reducen las ventas del vendedor
+          vendedoresMap[m.vendedor_id].ventas -= Math.abs(m.importe);
+        } else if (['Pago', 'Nota de Crédito'].includes(m.tipo_movimiento)) {
           vendedoresMap[m.vendedor_id].pagos += Math.abs(m.importe);
         }
       }
@@ -518,22 +555,32 @@ const DashboardAdmin: React.FC<DashboardProps> = ({ clientes, movimientos, curre
       return fecha.getMonth() + 1 === mesActual && fecha.getFullYear() === añoAnterior;
     });
 
-    // Calcular ventas
-    const ventasActual = movimientosMesActual
-      .filter(m => m.tipo_movimiento === 'Venta')
-      .reduce((sum, m) => sum + m.importe, 0);
+    // Calcular ventas NETAS (Ventas - Devoluciones)
+    let ventasActual = 0;
+    movimientosMesActual.forEach(m => {
+      if (m.tipo_movimiento === 'Venta') {
+        ventasActual += m.importe;
+      } else if (m.tipo_movimiento === 'Devolución') {
+        ventasActual -= Math.abs(m.importe);
+      }
+    });
     
-    const ventasAnterior = movimientosMesAnterior
-      .filter(m => m.tipo_movimiento === 'Venta')
-      .reduce((sum, m) => sum + m.importe, 0);
+    let ventasAnterior = 0;
+    movimientosMesAnterior.forEach(m => {
+      if (m.tipo_movimiento === 'Venta') {
+        ventasAnterior += m.importe;
+      } else if (m.tipo_movimiento === 'Devolución') {
+        ventasAnterior -= Math.abs(m.importe);
+      }
+    });
 
-    // Calcular cobros
+    // Calcular cobros (solo Pagos y Notas de Crédito)
     const cobrosActual = movimientosMesActual
-      .filter(m => ['Pago', 'Nota de Crédito', 'Devolución'].includes(m.tipo_movimiento))
+      .filter(m => ['Pago', 'Nota de Crédito'].includes(m.tipo_movimiento))
       .reduce((sum, m) => sum + Math.abs(m.importe), 0);
     
     const cobrosAnterior = movimientosMesAnterior
-      .filter(m => ['Pago', 'Nota de Crédito', 'Devolución'].includes(m.tipo_movimiento))
+      .filter(m => ['Pago', 'Nota de Crédito'].includes(m.tipo_movimiento))
       .reduce((sum, m) => sum + Math.abs(m.importe), 0);
 
     // Calcular porcentajes de crecimiento
@@ -790,6 +837,21 @@ const DashboardAdmin: React.FC<DashboardProps> = ({ clientes, movimientos, curre
         </div>
       </div>
 
+      {/* 📈 ANÁLISIS VENTAS EMPRESARIALES ÚLTIMOS 4 MESES */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+          <TrendingUp className="mr-3 text-primary" size={24} />
+          Ventas NETAS Empresariales - Últimos 4 Meses (Análisis Cuatrimestral)
+        </h3>
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            💡 <strong>Ventas Netas:</strong> Se incluyen las ventas y se descuentan las devoluciones para mostrar el ingreso real empresarial de cada mes.
+          </p>
+        </div>
+        
+        <VentasUltimos4Meses movimientos={movimientos} esVendedor={false} />
+      </div>
+
       {/* 📊 FOOTER EJECUTIVO */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex items-center justify-between text-sm text-gray-600">
@@ -823,6 +885,216 @@ const Dashboard: React.FC<DashboardProps> = ({ clientes, movimientos, currentUse
   } else {
     return <DashboardVendedor clientes={clientes} movimientos={movimientos} currentUser={currentUser} cheques={cheques} />;
   }
+};
+
+// 📈 COMPONENTE VENTAS ÚLTIMOS 4 MESES
+const VentasUltimos4Meses: React.FC<{
+  movimientos: Movimiento[];
+  esVendedor: boolean;
+}> = ({ movimientos, esVendedor }) => {
+  
+  const analisisVentas = useMemo(() => {
+    const hoy = new Date();
+    const meses = [];
+    
+    // Generar últimos 4 meses
+    for (let i = 1; i <= 4; i++) {
+      const fechaMes = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+      const año = fechaMes.getFullYear();
+      const mes = fechaMes.getMonth() + 1;
+      
+      // Filtrar movimientos de ventas Y devoluciones de este mes
+      const movimientosMes = movimientos.filter(m => {
+        const fechaMovimiento = new Date(m.fecha + 'T00:00:00');
+        const fechaCorrecta = fechaMovimiento.getFullYear() === año && 
+                             fechaMovimiento.getMonth() + 1 === mes;
+        
+        // Incluir Ventas y Devoluciones para cálculo real
+        return fechaCorrecta && (m.tipo_movimiento === 'Venta' || m.tipo_movimiento === 'Devolución');
+      });
+      
+      // Calcular ventas netas (Ventas - Devoluciones)
+      let totalVentas = 0;
+      let cantidadVentas = 0;
+      
+      movimientosMes.forEach(m => {
+        if (m.tipo_movimiento === 'Venta') {
+          totalVentas += m.importe;
+          cantidadVentas++;
+        } else if (m.tipo_movimiento === 'Devolución') {
+          // Las devoluciones reducen las ventas (pueden ser negativas o positivas)
+          totalVentas -= Math.abs(m.importe);
+        }
+      });
+      
+      // Nombres de meses en español
+      const nombresMeses = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+      ];
+      
+      meses.push({
+        año,
+        mes,
+        nombreMes: nombresMeses[mes - 1],
+        totalVentas,
+        cantidadVentas,
+        mesTexto: `${nombresMeses[mes - 1]} ${año}`,
+        mesCorto: `${String(mes).padStart(2, '0')}/${año}`
+      });
+    }
+    
+    // Ordenar del más antiguo al más reciente para mostrar cronológicamente
+    meses.reverse();
+    
+    // Calcular totales y promedios
+    const totalGeneral = meses.reduce((sum, m) => sum + m.totalVentas, 0);
+    const totalTransacciones = meses.reduce((sum, m) => sum + m.cantidadVentas, 0);
+    const promedioMensual = totalGeneral / 4;
+    
+    // Identificar mejor y peor mes
+    const mejorMes = meses.reduce((max, mes) => mes.totalVentas > max.totalVentas ? mes : max, meses[0]);
+    const peorMes = meses.reduce((min, mes) => mes.totalVentas < min.totalVentas ? mes : min, meses[0]);
+    
+    return {
+      meses,
+      totalGeneral,
+      totalTransacciones,
+      promedioMensual,
+      mejorMes,
+      peorMes
+    };
+  }, [movimientos]);
+  
+  // Calcular altura relativa para barras
+  const maxVenta = Math.max(...analisisVentas.meses.map(m => m.totalVentas));
+  
+  return (
+    <div className="space-y-6">
+      {/* 📊 Resumen Ejecutivo */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+          <div className="text-2xl font-bold text-blue-600 mb-1">
+            {formatearMoneda(analisisVentas.totalGeneral)}
+          </div>
+          <div className="text-sm text-blue-800 font-medium">Total 4 Meses</div>
+        </div>
+        
+        <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
+          <div className="text-2xl font-bold text-green-600 mb-1">
+            {formatearMoneda(analisisVentas.promedioMensual)}
+          </div>
+          <div className="text-sm text-green-800 font-medium">Promedio Mensual</div>
+        </div>
+        
+        <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+          <div className="text-2xl font-bold text-purple-600 mb-1">
+            {analisisVentas.totalTransacciones}
+          </div>
+          <div className="text-sm text-purple-800 font-medium">Total Transacciones</div>
+        </div>
+        
+        <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200">
+          <div className="text-2xl font-bold text-orange-600 mb-1">
+            {(analisisVentas.totalTransacciones / 4).toFixed(1)}
+          </div>
+          <div className="text-sm text-orange-800 font-medium">Ventas/Mes Promedio</div>
+        </div>
+      </div>
+
+      {/* 📈 Gráfico de Barras Horizontal */}
+      <div className="space-y-4">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <BarChart3 className="mr-2 text-primary" size={20} />
+          {esVendedor ? 'Mi Evolución' : 'Evolución Empresarial'} - Últimos 4 Meses
+        </h4>
+        
+        {analisisVentas.meses.map((mes, index) => {
+          const altura = maxVenta > 0 ? (mes.totalVentas / maxVenta) * 100 : 0;
+          const esMejorMes = mes === analisisVentas.mejorMes;
+          const esPeorMes = mes === analisisVentas.peorMes && analisisVentas.peorMes.totalVentas < analisisVentas.mejorMes.totalVentas;
+          
+          return (
+            <div key={`${mes.año}-${mes.mes}`} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
+              <div className="w-24 text-sm font-medium text-gray-700 flex items-center">
+                <Calendar className="mr-1" size={14} />
+                {mes.mesCorto}
+              </div>
+              
+              <div className="flex-1">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-1 bg-gray-200 rounded-full h-8 relative overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 flex items-center justify-end pr-2 ${
+                        esMejorMes ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                        esPeorMes ? 'bg-gradient-to-r from-red-400 to-red-600' :
+                        'bg-gradient-to-r from-blue-400 to-blue-600'
+                      }`}
+                      style={{ width: `${Math.max(altura, 10)}%` }}
+                    >
+                      <span className="text-white text-xs font-bold">
+                        {formatearMoneda(mes.totalVentas)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="w-16 text-sm text-gray-600 text-center">
+                    {mes.cantidadVentas} ops
+                  </div>
+                  
+                  {esMejorMes && (
+                    <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">↑</span>
+                    </div>
+                  )}
+                  
+                  {esPeorMes && (
+                    <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">↓</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="mt-1 text-xs text-gray-500">
+                  {mes.mesTexto}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 🎯 Insights del Análisis */}
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 border border-gray-200">
+        <h5 className="font-semibold text-gray-900 mb-2 flex items-center">
+          <Target className="mr-2 text-primary" size={16} />
+          Análisis del Cuatrimestre
+        </h5>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="font-medium text-green-700">💚 Mejor mes: </span>
+            <span className="text-gray-800">
+              {analisisVentas.mejorMes.mesTexto} con {formatearMoneda(analisisVentas.mejorMes.totalVentas)}
+            </span>
+          </div>
+          
+          {analisisVentas.peorMes.totalVentas < analisisVentas.mejorMes.totalVentas && (
+            <div>
+              <span className="font-medium text-red-700">📉 Mes más bajo: </span>
+              <span className="text-gray-800">
+                {analisisVentas.peorMes.mesTexto} con {formatearMoneda(analisisVentas.peorMes.totalVentas)}
+              </span>
+            </div>
+          )}
+        </div>
+        
+        <div className="mt-3 text-xs text-gray-600">
+          💡 <strong>Contexto de negocio:</strong> Análisis por cuatrimestres para decisiones estratégicas según el modelo de negocio Feraben.
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Dashboard;

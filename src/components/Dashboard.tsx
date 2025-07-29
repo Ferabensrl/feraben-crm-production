@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   Users, 
   AlertTriangle, 
@@ -14,7 +14,9 @@ import {
   User,
   MapPin,
   Calendar,
-  BarChart3
+  BarChart3,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { formatearMoneda } from '../lib/supabase';
 import { Cliente, Movimiento } from '../lib/supabase';
@@ -837,6 +839,21 @@ const DashboardAdmin: React.FC<DashboardProps> = ({ clientes, movimientos, curre
         </div>
       </div>
 
+      {/* 📊 ANÁLISIS VENTAS ANUALES (SOLO ADMIN) */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+          <Calendar className="mr-3 text-orange-500" size={24} />
+          Análisis de Ventas Anuales - Vista Ejecutiva
+        </h3>
+        <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+          <p className="text-sm text-orange-800">
+            👑 <strong>Solo Admin:</strong> Métricas anuales para análisis estratégico y conclusiones de fin de año.
+          </p>
+        </div>
+        
+        <VentasAnuales movimientos={movimientos} />
+      </div>
+
       {/* 📈 ANÁLISIS VENTAS EMPRESARIALES ÚLTIMOS 4 MESES */}
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
@@ -1091,6 +1108,329 @@ const VentasUltimos4Meses: React.FC<{
         
         <div className="mt-3 text-xs text-gray-600">
           💡 <strong>Contexto de negocio:</strong> Análisis por cuatrimestres para decisiones estratégicas según el modelo de negocio Feraben.
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 📊 COMPONENTE VENTAS ANUALES (SOLO ADMIN)
+const VentasAnuales: React.FC<{
+  movimientos: Movimiento[];
+}> = ({ movimientos }) => {
+  
+  const añoActual = new Date().getFullYear();
+  const [añoSeleccionado, setAñoSeleccionado] = useState(añoActual);
+  
+  const analisisAnual = useMemo(() => {
+    // Obtener años disponibles en los datos
+    const añosDisponibles = [...new Set(
+      movimientos
+        .filter(m => m.tipo_movimiento === 'Venta' || m.tipo_movimiento === 'Devolución')
+        .map(m => new Date(m.fecha + 'T00:00:00').getFullYear())
+    )].sort((a, b) => b - a); // Ordenar descendente
+    
+    if (añosDisponibles.length === 0) {
+      return {
+        añosDisponibles: [añoActual],
+        ventasAñoActual: 0,
+        ventasAñoAnterior: 0,
+        ventasAñoSeleccionado: 0,
+        transaccionesAñoActual: 0,
+        transaccionesAñoSeleccionado: 0,
+        crecimientoAnual: 0,
+        promedioMensual: 0,
+        mejorMes: null,
+        peorMes: null,
+        mesesDetalle: []
+      };
+    }
+    
+    // Calcular ventas netas por año
+    const calcularVentasAño = (año: number) => {
+      let ventasNetas = 0;
+      let transacciones = 0;
+      
+      movimientos.forEach(m => {
+        const fechaMovimiento = new Date(m.fecha + 'T00:00:00');
+        if (fechaMovimiento.getFullYear() === año) {
+          if (m.tipo_movimiento === 'Venta') {
+            ventasNetas += m.importe;
+            transacciones++;
+          } else if (m.tipo_movimiento === 'Devolución') {
+            ventasNetas -= Math.abs(m.importe);
+          }
+        }
+      });
+      
+      return { ventasNetas, transacciones };
+    };
+    
+    // Calcular ventas por mes del año seleccionado
+    const calcularVentasPorMes = (año: number) => {
+      const meses = [];
+      const nombresMeses = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+      ];
+      
+      for (let mes = 1; mes <= 12; mes++) {
+        let ventasMes = 0;
+        let transaccionesMes = 0;
+        
+        movimientos.forEach(m => {
+          const fechaMovimiento = new Date(m.fecha + 'T00:00:00');
+          if (fechaMovimiento.getFullYear() === año && fechaMovimiento.getMonth() + 1 === mes) {
+            if (m.tipo_movimiento === 'Venta') {
+              ventasMes += m.importe;
+              transaccionesMes++;
+            } else if (m.tipo_movimiento === 'Devolución') {
+              ventasMes -= Math.abs(m.importe);
+            }
+          }
+        });
+        
+        meses.push({
+          mes,
+          nombreMes: nombresMeses[mes - 1],
+          ventasNetas: ventasMes,
+          transacciones: transaccionesMes
+        });
+      }
+      
+      return meses;
+    };
+    
+    const ventasAñoActual = calcularVentasAño(añoActual);
+    const ventasAñoAnterior = calcularVentasAño(añoActual - 1);
+    const ventasAñoSeleccionado = calcularVentasAño(añoSeleccionado);
+    
+    const crecimientoAnual = ventasAñoAnterior.ventasNetas > 0 
+      ? ((ventasAñoActual.ventasNetas - ventasAñoAnterior.ventasNetas) / ventasAñoAnterior.ventasNetas) * 100 
+      : 0;
+    
+    const mesesDetalle = calcularVentasPorMes(añoSeleccionado);
+    const mesesConVentas = mesesDetalle.filter(m => m.ventasNetas > 0);
+    const mejorMes = mesesConVentas.length > 0 ? mesesConVentas.reduce((max, mes) => mes.ventasNetas > max.ventasNetas ? mes : max, mesesConVentas[0]) : null;
+    const peorMes = mesesConVentas.length > 0 ? mesesConVentas.reduce((min, mes) => mes.ventasNetas < min.ventasNetas ? mes : min, mesesConVentas[0]) : null;
+    const promedioMensual = ventasAñoSeleccionado.ventasNetas / 12;
+    
+    return {
+      añosDisponibles,
+      ventasAñoActual: ventasAñoActual.ventasNetas,
+      ventasAñoAnterior: ventasAñoAnterior.ventasNetas,
+      ventasAñoSeleccionado: ventasAñoSeleccionado.ventasNetas,
+      transaccionesAñoActual: ventasAñoActual.transacciones,
+      transaccionesAñoSeleccionado: ventasAñoSeleccionado.transacciones,
+      crecimientoAnual,
+      promedioMensual,
+      mejorMes,
+      peorMes,
+      mesesDetalle
+    };
+  }, [movimientos, añoSeleccionado, añoActual]);
+  
+  const cambiarAño = (direccion: 'anterior' | 'siguiente') => {
+    const indiceActual = analisisAnual.añosDisponibles.indexOf(añoSeleccionado);
+    if (direccion === 'anterior' && indiceActual < analisisAnual.añosDisponibles.length - 1) {
+      setAñoSeleccionado(analisisAnual.añosDisponibles[indiceActual + 1]);
+    } else if (direccion === 'siguiente' && indiceActual > 0) {
+      setAñoSeleccionado(analisisAnual.añosDisponibles[indiceActual - 1]);
+    }
+  };
+  
+  const maxVentaMes = Math.max(...analisisAnual.mesesDetalle.map(m => m.ventasNetas));
+  
+  return (
+    <div className="space-y-6">
+      {/* 📊 Métricas Principales Anuales */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Año Actual */}
+        <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
+          <h4 className="text-lg font-semibold text-green-800 mb-2 flex items-center justify-center">
+            <Calendar className="mr-2" size={20} />
+            Año {añoActual} (Acumulado)
+          </h4>
+          <div className="text-3xl font-bold text-green-600 mb-2">
+            {formatearMoneda(analisisAnual.ventasAñoActual)}
+          </div>
+          <div className="text-sm text-green-700 mb-1">
+            {analisisAnual.transaccionesAñoActual} transacciones
+          </div>
+          <div className="text-xs text-green-600">
+            Hasta {new Date().toLocaleDateString('es-UY', { day: '2-digit', month: '2-digit' })}
+          </div>
+        </div>
+        
+        {/* Año Anterior */}
+        <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+          <h4 className="text-lg font-semibold text-blue-800 mb-2 flex items-center justify-center">
+            <Calendar className="mr-2" size={20} />
+            Año {añoActual - 1} (Completo)
+          </h4>
+          <div className="text-3xl font-bold text-blue-600 mb-2">
+            {formatearMoneda(analisisAnual.ventasAñoAnterior)}
+          </div>
+          <div className="text-sm text-blue-700 mb-1">
+            Año de referencia
+          </div>
+          <div className={`text-sm font-bold flex items-center justify-center ${
+            analisisAnual.crecimientoAnual >= 0 ? 'text-green-600' : 'text-red-600'
+          }`}>
+            {analisisAnual.crecimientoAnual >= 0 ? '↗️' : '↘️'} 
+            {Math.abs(analisisAnual.crecimientoAnual).toFixed(1)}% vs {añoActual}
+          </div>
+        </div>
+        
+        {/* Navegador de Años */}
+        <div className="text-center p-6 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200">
+          <h4 className="text-lg font-semibold text-orange-800 mb-4">
+            Consulta Histórica
+          </h4>
+          
+          {/* Selector de Año */}
+          <div className="flex items-center justify-center space-x-3 mb-3">
+            <button 
+              onClick={() => cambiarAño('anterior')}
+              disabled={analisisAnual.añosDisponibles.indexOf(añoSeleccionado) >= analisisAnual.añosDisponibles.length - 1}
+              className="p-1 rounded-full bg-orange-200 hover:bg-orange-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            
+            <div className="text-2xl font-bold text-orange-600 min-w-[80px]">
+              {añoSeleccionado}
+            </div>
+            
+            <button 
+              onClick={() => cambiarAño('siguiente')}
+              disabled={analisisAnual.añosDisponibles.indexOf(añoSeleccionado) <= 0}
+              className="p-1 rounded-full bg-orange-200 hover:bg-orange-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          
+          <div className="text-xl font-bold text-orange-600 mb-1">
+            {formatearMoneda(analisisAnual.ventasAñoSeleccionado)}
+          </div>
+          <div className="text-sm text-orange-700">
+            {analisisAnual.transaccionesAñoSeleccionado} transacciones
+          </div>
+        </div>
+      </div>
+      
+      {/* 📈 Desglose Mensual del Año Seleccionado */}
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-6 border border-gray-200">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <BarChart3 className="mr-2 text-orange-500" size={20} />
+          Desglose Mensual {añoSeleccionado}
+        </h4>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {analisisAnual.mesesDetalle.map((mes) => {
+            const porcentaje = maxVentaMes > 0 ? (mes.ventasNetas / maxVentaMes) * 100 : 0;
+            const esMejorMes = analisisAnual.mejorMes && mes.mes === analisisAnual.mejorMes.mes;
+            const esPeorMes = analisisAnual.peorMes && mes.mes === analisisAnual.peorMes.mes && analisisAnual.peorMes.ventasNetas < (analisisAnual.mejorMes?.ventasNetas || 0);
+            
+            return (
+              <div key={mes.mes} className={`p-3 rounded-lg border text-center ${
+                esMejorMes ? 'bg-green-100 border-green-300' :
+                esPeorMes ? 'bg-red-100 border-red-300' :
+                'bg-white border-gray-200'
+              }`}>
+                <div className="text-xs font-medium text-gray-600 mb-1">
+                  {mes.nombreMes.substring(0, 3)}
+                </div>
+                <div className={`text-sm font-bold mb-1 ${
+                  esMejorMes ? 'text-green-700' :
+                  esPeorMes ? 'text-red-700' :
+                  'text-gray-900'
+                }`}>
+                  {mes.ventasNetas > 0 ? formatearMoneda(mes.ventasNetas) : '-'}
+                </div>
+                
+                {mes.ventasNetas > 0 && (
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+                    <div 
+                      className={`h-2 rounded-full ${
+                        esMejorMes ? 'bg-green-500' :
+                        esPeorMes ? 'bg-red-500' :
+                        'bg-blue-500'
+                      }`}
+                      style={{ width: `${Math.max(porcentaje, 5)}%` }}
+                    ></div>
+                  </div>
+                )}
+                
+                <div className="text-xs text-gray-500">
+                  {mes.transacciones} ops
+                </div>
+                
+                {esMejorMes && <div className="text-xs text-green-600 font-bold">👑 Mejor</div>}
+                {esPeorMes && <div className="text-xs text-red-600 font-bold">📉 Menor</div>}
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* Resumen del año seleccionado */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-300">
+          <div className="text-center">
+            <div className="text-sm text-gray-600">Promedio Mensual</div>
+            <div className="text-lg font-bold text-gray-900">
+              {formatearMoneda(analisisAnual.promedioMensual)}
+            </div>
+          </div>
+          
+          {analisisAnual.mejorMes && (
+            <div className="text-center">
+              <div className="text-sm text-green-600">Mejor Mes</div>
+              <div className="text-lg font-bold text-green-700">
+                {analisisAnual.mejorMes.nombreMes}: {formatearMoneda(analisisAnual.mejorMes.ventasNetas)}
+              </div>
+            </div>
+          )}
+          
+          {analisisAnual.peorMes && analisisAnual.peorMes.ventasNetas < (analisisAnual.mejorMes?.ventasNetas || 0) && (
+            <div className="text-center">
+              <div className="text-sm text-red-600">Mes Más Bajo</div>
+              <div className="text-lg font-bold text-red-700">
+                {analisisAnual.peorMes.nombreMes}: {formatearMoneda(analisisAnual.peorMes.ventasNetas)}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* 💡 Insights Anuales */}
+      <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
+        <h5 className="font-semibold text-orange-900 mb-2 flex items-center">
+          <Target className="mr-2 text-orange-600" size={16} />
+          Insights Ejecutivos - Año {añoSeleccionado}
+        </h5>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="font-medium text-orange-800">📊 Total Anual: </span>
+            <span className="text-gray-800">
+              {formatearMoneda(analisisAnual.ventasAñoSeleccionado)} en {analisisAnual.transaccionesAñoSeleccionado} operaciones
+            </span>
+          </div>
+          
+          {añoSeleccionado === añoActual && (
+            <div>
+              <span className="font-medium text-orange-800">🎯 Proyección: </span>
+              <span className="text-gray-800">
+                Al ritmo actual: {formatearMoneda((analisisAnual.ventasAñoActual / new Date().getMonth() + 1) * 12)}
+              </span>
+            </div>
+          )}
+        </div>
+        
+        <div className="mt-3 text-xs text-orange-700">
+          🏆 <strong>Solo para Fernando (Admin):</strong> Datos de ventas netas anuales para análisis estratégico y conclusiones de fin de año.
         </div>
       </div>
     </div>

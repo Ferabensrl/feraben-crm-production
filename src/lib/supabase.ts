@@ -35,6 +35,18 @@ export interface Movimiento {
   saldo_acumulado?: number         
 }
 
+export interface Gasto {
+  id: number
+  fecha: string
+  categoria: string
+  descripcion: string | null
+  monto: number
+  tipo: 'Empresa' | 'Personal'
+  usuario_id: number
+  created_at: string
+  updated_at: string
+}
+
 // Funciones de Utilidad
 export const formatearMoneda = (monto: number | null | undefined): string => {
   if (monto === null || monto === undefined) return '$ 0,00'
@@ -334,3 +346,189 @@ export const ajustarInventario = async (
     logger.error('❌ Error ajustando inventario:', err);
   }
 };
+
+// ========================================
+// FUNCIONES GASTOS
+// ========================================
+
+export const getGastos = async (usuarioId?: number): Promise<Gasto[]> => {
+  try {
+    let query = supabase
+      .from('gastos')
+      .select('*')
+      .order('fecha', { ascending: false });
+    
+    if (usuarioId) {
+      query = query.eq('usuario_id', usuarioId);
+    }
+    
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []) as Gasto[];
+  } catch (error) {
+    logger.error('❌ Error cargando gastos:', error);
+    return [];
+  }
+};
+
+export const getGastosPorMes = async (mes: string, usuarioId?: number): Promise<Gasto[]> => {
+  try {
+    // Calcular el primer día del mes siguiente para la comparación
+    const [año, mesNum] = mes.split('-').map(Number);
+    const primerDiaMesSiguiente = new Date(año, mesNum, 1); // mes es 0-indexed en Date
+    const fechaLimite = primerDiaMesSiguiente.toISOString().split('T')[0];
+    
+    let query = supabase
+      .from('gastos')
+      .select('*')
+      .gte('fecha', `${mes}-01`)
+      .lt('fecha', fechaLimite)
+      .order('fecha', { ascending: false });
+    
+    if (usuarioId) {
+      query = query.eq('usuario_id', usuarioId);
+    }
+    
+    const { data, error } = await query;
+    if (error) throw error;
+    
+    logger.log(`📊 Gastos encontrados para ${mes}:`, data?.length || 0);
+    return (data || []) as Gasto[];
+  } catch (error) {
+    logger.error('❌ Error cargando gastos por mes:', error);
+    return [];
+  }
+};
+
+export const crearGasto = async (gasto: Omit<Gasto, 'id' | 'created_at' | 'updated_at'>): Promise<Gasto | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('gastos')
+      .insert([gasto])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    logger.log('✅ Gasto creado exitosamente');
+    return data as Gasto;
+  } catch (error) {
+    logger.error('❌ Error creando gasto:', error);
+    return null;
+  }
+};
+
+export const actualizarGasto = async (id: number, gasto: Partial<Omit<Gasto, 'id' | 'created_at' | 'updated_at'>>): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('gastos')
+      .update({ ...gasto, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    
+    if (error) throw error;
+    logger.log('✅ Gasto actualizado exitosamente');
+    return true;
+  } catch (error) {
+    logger.error('❌ Error actualizando gasto:', error);
+    return false;
+  }
+};
+
+export const eliminarGasto = async (id: number): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('gastos')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    logger.log('✅ Gasto eliminado exitosamente');
+    return true;
+  } catch (error) {
+    logger.error('❌ Error eliminando gasto:', error);
+    return false;
+  }
+};
+
+export const getEstadisticasGastos = async (mes: string, usuarioId?: number) => {
+  try {
+    const gastos = await getGastosPorMes(mes, usuarioId);
+    
+    logger.log(`📊 Calculando estadísticas para ${mes} con ${gastos.length} gastos`);
+    
+    const gastosEmpresa = gastos.filter(g => g.tipo === 'Empresa');
+    const gastosPersonal = gastos.filter(g => g.tipo === 'Personal');
+    
+    const totalEmpresa = gastosEmpresa.reduce((sum, g) => sum + g.monto, 0);
+    const totalPersonal = gastosPersonal.reduce((sum, g) => sum + g.monto, 0);
+    const totalGeneral = totalEmpresa + totalPersonal;
+    
+    logger.log(`💰 Totales: Empresa=${totalEmpresa}, Personal=${totalPersonal}, General=${totalGeneral}`);
+    
+    const porCategoria = gastos.reduce((acc, gasto) => {
+      const key = gasto.categoria;
+      if (!acc[key]) {
+        acc[key] = { empresa: 0, personal: 0, total: 0 };
+      }
+      acc[key][gasto.tipo.toLowerCase() as 'empresa' | 'personal'] += gasto.monto;
+      acc[key].total += gasto.monto;
+      return acc;
+    }, {} as Record<string, { empresa: number; personal: number; total: number }>);
+    
+    const estadisticas = {
+      totalEmpresa,
+      totalPersonal,
+      totalGeneral,
+      porcentajeEmpresa: totalGeneral > 0 ? (totalEmpresa / totalGeneral) * 100 : 0,
+      porcentajePersonal: totalGeneral > 0 ? (totalPersonal / totalGeneral) * 100 : 0,
+      porCategoria,
+      cantidadGastos: gastos.length
+    };
+    
+    logger.log('✅ Estadísticas calculadas:', estadisticas);
+    return estadisticas;
+  } catch (error) {
+    logger.error('❌ Error calculando estadísticas:', error);
+    return {
+      totalEmpresa: 0,
+      totalPersonal: 0,
+      totalGeneral: 0,
+      porcentajeEmpresa: 0,
+      porcentajePersonal: 0,
+      porCategoria: {},
+      cantidadGastos: 0
+    };
+  }
+};
+
+// Categorías predefinidas basadas en el CSV analizado
+export const CATEGORIAS_GASTOS = {
+  EMPRESA: [
+    'Combustible Kangoo',
+    'Varios Empresa', 
+    'BPS EMPRESA',
+    'Sueldos',
+    'BSE Empresa',
+    'DGI',
+    'Honorarios contadora',
+    'Patente Kangoo',
+    'Viaticos empresa'
+  ],
+  PERSONAL: [
+    'UTE',
+    'ANTEL', 
+    'OSE',
+    'Combustible Celerio',
+    'Seguro Celerio',
+    'Cuota Celerio',
+    'Supermercado',
+    'Salir a comer',
+    'Celulares',
+    'DIRECTV + NETFLIX',
+    'Tarjeta OCA',
+    'Tarjeta BBVA',
+    'Varios Personal',
+    'BPS PERSONAL',
+    'Colegio Benjamin',
+    'Cuota Terreno'
+  ]
+} as const;

@@ -1124,11 +1124,12 @@ const VentasAnuales: React.FC<{
   
   const analisisAnual = useMemo(() => {
     // Obtener años disponibles en los datos
-    const añosDisponibles = [...new Set(
+    const añosSet = new Set(
       movimientos
         .filter(m => m.tipo_movimiento === 'Venta' || m.tipo_movimiento === 'Devolución')
         .map(m => new Date(m.fecha + 'T00:00:00').getFullYear())
-    )].sort((a, b) => b - a); // Ordenar descendente
+    );
+    const añosDisponibles = Array.from(añosSet).sort((a, b) => b - a); // Ordenar descendente
     
     if (añosDisponibles.length === 0) {
       return {

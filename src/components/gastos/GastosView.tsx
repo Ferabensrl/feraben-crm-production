@@ -24,20 +24,9 @@ const GastosView: React.FC = () => {
   const mesActual = `${añoSeleccionado}-${String(mesSeleccionado).padStart(2, '0')}`;
   const [loading, setLoading] = useState(true);
 
-  // Verificar permisos de admin
-  if (!currentUser || currentUser.rol.toLowerCase() !== 'admin') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center">
-          <Calculator className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">Acceso Restringido</h2>
-          <p className="text-gray-500">Esta sección está disponible solo para administradores.</p>
-        </div>
-      </div>
-    );
-  }
-
   const cargarDatos = async () => {
+    if (!currentUser) return;
+    
     setLoading(true);
     try {
       const [gastosData, estadisticasData] = await Promise.all([
@@ -55,10 +44,21 @@ const GastosView: React.FC = () => {
   };
 
   useEffect(() => {
-    if (currentUser) {
-      cargarDatos();
-    }
+    cargarDatos();
   }, [añoSeleccionado, mesSeleccionado, currentUser]);
+
+  // Verificar permisos de admin
+  if (!currentUser || currentUser.rol.toLowerCase() !== 'admin') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <Calculator className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">Acceso Restringido</h2>
+          <p className="text-gray-500">Esta sección está disponible solo para administradores.</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleGastoCreado = () => {
     cargarDatos();

@@ -35,6 +35,9 @@ interface ChequesViewProps {
 }
 
 export const ChequesView: React.FC<ChequesViewProps> = ({ currentUser }) => {
+  if (currentUser.rol.toLowerCase() !== 'admin') {
+    return <div className="p-4">Acceso denegado</div>
+  }
   const [cheques, setCheques] = useState<Cheque[]>([])
   const [clientes, setClientes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
